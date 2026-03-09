@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Camera, Upload, X, ImageIcon } from "lucide-react";
+import { Camera, Upload, X, ImageIcon, Sparkles } from "lucide-react";
 import type { TaggedPhoto } from "@/lib/survey-types";
 import { SECTION_META } from "@/lib/survey-types";
 import { compressImage } from "@/lib/image-compress";
@@ -172,6 +172,12 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
                   <span className="absolute left-2 top-2 rounded-lg bg-black/60 px-2 py-1 text-xs font-bold text-white">
                     {index + 1}
                   </span>
+                  {photo.section !== "general" && (
+                    <span className="absolute left-2 bottom-2 flex items-center gap-1 rounded-lg bg-blue-600/90 px-2 py-1 text-xs font-bold text-white">
+                      <Sparkles className="h-3 w-3" />
+                      Section {photo.section}
+                    </span>
+                  )}
                 </div>
                 <div className="p-3 space-y-2">
                   <SelectField

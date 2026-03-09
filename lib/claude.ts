@@ -509,7 +509,9 @@ export async function autoFillFromPhotos(
     });
   });
 
-  const prompt = `You are a property risk engineer. Analyze these site photos and extract as many observable facts as possible to pre-fill a property risk survey checklist.
+  const prompt = `You are a property risk engineer. Analyze these ${photos.length} site photos and:
+1. Extract as many observable facts as possible to pre-fill a property risk survey checklist.
+2. Categorize each photo into the most relevant survey section.
 
 Look carefully at every photo for clues about:
 - Building type, occupancy, approximate size and floors
@@ -520,10 +522,20 @@ Look carefully at every photo for clues about:
 
 ONLY include fields where you can make a reasonable observation from the photos. Leave fields empty ("") if not visible or uncertain. Use the EXACT values from the allowed options when possible.
 
+PHOTO CATEGORIZATION RULES:
+- "A" = General / overview shots, building exterior, signage, surroundings, entrance
+- "B" = Construction details: walls, roof, structure, floors, ceilings, insulation
+- "C" = Fire protection: fire extinguishers, sprinklers, smoke detectors, fire alarm panels, hose reels, hydrants, emergency exits, fire doors
+- "D" = Hazards: electrical panels, chemical storage, hazardous materials, LPG tanks, dust, process equipment
+- "E" = Housekeeping: cleanliness, waste bins, maintenance areas, security cameras, fencing, gates, CCTV
+- "general" = Only if the photo doesn't clearly fit any section above
+
+For each photo, provide a short descriptive caption (5-15 words) explaining what's visible.
+
 You MUST respond with ONLY valid JSON (no markdown, no code blocks):
 {
   "sectionA": {
-    "occupancy": "Warehouse|Manufacturing|Office|Retail|Residential|Mixed Use|Industrial|Cold Storage|Food Processing|Chemical|Logistics|Other",
+    "occupancy": "Warehouse|Manufacturing|Manufacturing + Warehouse|Manufacturing + Warehouse + Office|Office|Retail|Residential|Mixed Use|Industrial|Cold Storage|Food Processing|Chemical|Logistics|Other",
     "occupancyDetails": "description of what appears to be stored/manufactured",
     "buildingAge": "estimated age if possible, empty if not",
     "totalArea": "estimated area in sqm if possible",
@@ -580,11 +592,18 @@ You MUST respond with ONLY valid JSON (no markdown, no code blocks):
     "floodExposure": "Yes|No",
     "naturalCatExposure": "None|Earthquake|Cyclone|Flood|Sandstorm|Multiple"
   },
+  "photoCategories": [
+    {"section": "A", "caption": "Front view of warehouse building with signage"},
+    {"section": "C", "caption": "Fire extinguisher mounted near emergency exit"},
+    {"section": "B", "caption": "Metal roof structure with steel trusses visible"}
+  ],
   "confidence": "low|medium|high",
   "summary": "Brief 1-2 sentence summary of what was detected in the photos"
 }
 
-Remember: ONLY fill fields you can actually observe in the photos. Empty string "" for anything not visible. Be accurate, not speculative.`;
+CRITICAL: The "photoCategories" array MUST have exactly ${photos.length} entries — one for each photo, in the same order they were provided (Photo 1 = index 0, Photo 2 = index 1, etc.).
+
+Remember: ONLY fill checklist fields you can actually observe in the photos. Empty string "" for anything not visible. Be accurate, not speculative.`;
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",

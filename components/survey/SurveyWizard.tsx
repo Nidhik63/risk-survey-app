@@ -110,6 +110,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
       }
 
       // Merge auto-filled data (only fill empty fields, don't overwrite user data)
+      // Also apply AI-generated photo categories and captions
       setData((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mergeFields = (existing: any, incoming: any) => {
@@ -123,8 +124,25 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
           return out;
         };
 
+        // Apply AI photo categories (section + caption) to each photo
+        let updatedPhotos = prev.photos;
+        if (result.photoCategories && result.photoCategories.length > 0) {
+          updatedPhotos = prev.photos.map((photo, idx) => {
+            const cat = result.photoCategories[idx];
+            if (!cat) return photo;
+            return {
+              ...photo,
+              // Only override section if user hasn't manually changed it from "general"
+              section: photo.section === "general" && cat.section ? cat.section : photo.section,
+              // Only set caption if user hasn't typed one
+              caption: !photo.caption.trim() && cat.caption ? cat.caption : photo.caption,
+            };
+          });
+        }
+
         return {
           ...prev,
+          photos: updatedPhotos,
           sectionA: mergeFields(prev.sectionA, result.sectionA),
           sectionB: mergeFields(prev.sectionB, result.sectionB),
           sectionC: mergeFields(prev.sectionC, result.sectionC),
@@ -133,9 +151,17 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
         };
       });
 
+      // Count how many photos got categorized
+      const photosTagged = result.photoCategories
+        ? result.photoCategories.filter((c) => c.section && c.section !== "general").length
+        : 0;
+
       setAutoFilledFields(fieldCount);
       setAutoFilled(true);
-      setAutoFillSummary(result.summary || "Form fields pre-filled from photos.");
+      setAutoFillSummary(
+        (result.summary || "Form fields pre-filled from photos.") +
+        (photosTagged > 0 ? ` ${photosTagged} photo${photosTagged > 1 ? "s" : ""} auto-categorized.` : "")
+      );
     } catch (err) {
       setAutoFillError(
         err instanceof Error ? err.message : "Auto-fill failed. You can still fill the form manually."
@@ -324,7 +350,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
                   AI is analyzing your photos...
                 </p>
                 <p className="text-xs text-blue-700">
-                  Extracting building details, fire protection, and more to pre-fill the checklist.
+                  Extracting building details, categorizing photos, and pre-filling the checklist.
                 </p>
               </div>
             </div>
@@ -337,7 +363,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
                     Auto-fill checklist from photos?
                   </p>
                   <p className="text-xs text-blue-700">
-                    AI will scan your {data.photos.length} photo{data.photos.length > 1 ? "s" : ""} and pre-fill observable details. You can review and correct everything.
+                    AI will scan your {data.photos.length} photo{data.photos.length > 1 ? "s" : ""}, auto-categorize them into sections, and pre-fill observable details. You can review and correct everything.
                   </p>
                 </div>
               </div>

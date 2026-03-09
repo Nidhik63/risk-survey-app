@@ -152,12 +152,18 @@ export interface ComplianceItem {
 // Auto-Fill Result (returned from photo pre-analysis)
 // ============================================================
 
+export interface PhotoCategory {
+  section: "A" | "B" | "C" | "D" | "E" | "general";
+  caption: string;   // AI-generated description of what's in the photo
+}
+
 export interface AutoFillResult {
   sectionA: Partial<SectionA>;
   sectionB: Partial<SectionB>;
   sectionC: Partial<SectionC>;
   sectionD: Partial<SectionD>;
   sectionE: Partial<SectionE>;
+  photoCategories: PhotoCategory[];  // One per uploaded photo, in order
   confidence: string; // "low" | "medium" | "high"
   summary: string;    // Brief description of what was detected
 }
