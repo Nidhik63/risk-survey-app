@@ -162,41 +162,41 @@ export default function ReviewStep({ data, onGoToStep }: ReviewStepProps) {
           title="A: General Information"
           icon={Building2}
           color="bg-blue-100 text-blue-600"
-          stepIndex={0}
+          stepIndex={1}
           entries={sectionAEntries}
-          onEdit={() => onGoToStep(0)}
+          onEdit={() => onGoToStep(1)}
         />
         <ReviewCard
           title="B: Construction Details"
           icon={HardHat}
           color="bg-orange-100 text-orange-600"
-          stepIndex={1}
+          stepIndex={2}
           entries={sectionBEntries}
-          onEdit={() => onGoToStep(1)}
+          onEdit={() => onGoToStep(2)}
         />
         <ReviewCard
           title="C: Fire Protection"
           icon={Flame}
           color="bg-red-100 text-red-600"
-          stepIndex={2}
+          stepIndex={3}
           entries={sectionCEntries}
-          onEdit={() => onGoToStep(2)}
+          onEdit={() => onGoToStep(3)}
         />
         <ReviewCard
           title="D: EHS / Hazards"
           icon={AlertTriangle}
           color="bg-amber-100 text-amber-600"
-          stepIndex={3}
+          stepIndex={4}
           entries={sectionDEntries}
-          onEdit={() => onGoToStep(3)}
+          onEdit={() => onGoToStep(4)}
         />
         <ReviewCard
           title="E: Housekeeping & Maintenance"
           icon={Wrench}
           color="bg-purple-100 text-purple-600"
-          stepIndex={4}
+          stepIndex={5}
           entries={sectionEEntries}
-          onEdit={() => onGoToStep(4)}
+          onEdit={() => onGoToStep(5)}
         />
 
         {/* Photo summary */}
@@ -215,7 +215,7 @@ export default function ReviewStep({ data, onGoToStep }: ReviewStepProps) {
             </div>
             <button
               type="button"
-              onClick={() => onGoToStep(5)}
+              onClick={() => onGoToStep(0)}
               className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--primary)] transition-all hover:bg-blue-50"
             >
               <Edit3 className="h-3 w-3" />

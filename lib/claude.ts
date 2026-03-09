@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { RiskAnalysis, SiteDetails } from "./risk-scoring";
-import type { SurveyDataV2, RIReportAnalysis, TaggedPhoto } from "./survey-types";
+import type { SurveyDataV2, RIReportAnalysis, TaggedPhoto, AutoFillResult } from "./survey-types";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -474,5 +474,139 @@ IMPORTANT GUIDELINES:
   }
 
   const parsed: RIReportAnalysis = JSON.parse(jsonText);
+  return parsed;
+}
+
+// ============================================================
+// Auto-Fill: Extract checklist data from photos
+// ============================================================
+
+export async function autoFillFromPhotos(
+  photos: TaggedPhoto[]
+): Promise<AutoFillResult> {
+  if (photos.length === 0) {
+    throw new Error("At least one photo is required for auto-fill");
+  }
+
+  // Build image content
+  const imageContent: Anthropic.Messages.ContentBlockParam[] = [];
+  photos.forEach((photo, index) => {
+    const match = photo.dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+    const mediaType = (match?.[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp") || "image/jpeg";
+    const data = match?.[2] || photo.dataUrl;
+
+    imageContent.push({
+      type: "text" as const,
+      text: `[Photo ${index + 1}${photo.caption ? ` — ${photo.caption}` : ""}]`,
+    });
+    imageContent.push({
+      type: "image" as const,
+      source: {
+        type: "base64" as const,
+        media_type: mediaType,
+        data: data,
+      },
+    });
+  });
+
+  const prompt = `You are a property risk engineer. Analyze these site photos and extract as many observable facts as possible to pre-fill a property risk survey checklist.
+
+Look carefully at every photo for clues about:
+- Building type, occupancy, approximate size and floors
+- Construction: structural frame type, wall material, roof type, floor type, building condition
+- Fire protection: visible detectors, sprinklers, extinguishers, hose reels, hydrants, fire alarm panels, emergency exits
+- Hazards: hazardous materials, electrical panels/wiring condition, smoking areas, chemical storage
+- Housekeeping: general tidiness, waste management, security cameras, fencing, access gates
+
+ONLY include fields where you can make a reasonable observation from the photos. Leave fields empty ("") if not visible or uncertain. Use the EXACT values from the allowed options when possible.
+
+You MUST respond with ONLY valid JSON (no markdown, no code blocks):
+{
+  "sectionA": {
+    "occupancy": "Warehouse|Manufacturing|Office|Retail|Residential|Mixed Use|Industrial|Cold Storage|Food Processing|Chemical|Logistics|Other",
+    "occupancyDetails": "description of what appears to be stored/manufactured",
+    "buildingAge": "estimated age if possible, empty if not",
+    "totalArea": "estimated area in sqm if possible",
+    "numberOfFloors": "number visible",
+    "numberOfBasements": "",
+    "surroundingExposures": "describe visible surroundings"
+  },
+  "sectionB": {
+    "structuralFrame": "RCC|Steel Frame|Load Bearing|Pre-Engineered|Composite|Timber|Other",
+    "externalWalls": "Concrete Block|Sandwich Panel|Metal Cladding|Brick|Precast Concrete|Curtain Wall|Other",
+    "roofStructure": "RCC Slab|Metal Deck|Metal Truss|Portal Frame|Timber Truss|Other",
+    "roofCovering": "Metal Sheet|Built-up|Single Ply|Concrete Tile|Sandwich Panel|Other",
+    "floorType": "Concrete|Raised Floor|Tiled|Epoxy Coated|Other",
+    "ceilingType": "description",
+    "insulationType": "Non-Combustible|Combustible|None",
+    "mezzanineFloors": "Yes - description|No",
+    "buildingCondition": "Good|Fair|Poor",
+    "structuralConcerns": "description of any visible issues"
+  },
+  "sectionC": {
+    "fireDetectionSystem": "Yes|No",
+    "detectionType": "Smoke Detectors|Heat Detectors|Beam Detectors|VESDA|Multi-Sensor|Other",
+    "sprinklerSystem": "Yes|No",
+    "sprinklerType": "Wet Pipe|Dry Pipe|Deluge|Pre-Action|Foam|Other",
+    "sprinklerCoverage": "Full|Partial",
+    "fireExtinguishers": "Yes|No",
+    "extinguisherTypes": "CO2|DCP|Foam|Water|Mixed Types",
+    "fireHoseReels": "Yes|No",
+    "externalHydrants": "Yes|No",
+    "fireAlarmPanel": "Yes|No",
+    "emergencyExits": "Adequate|Inadequate",
+    "hotWorkProcedures": "Yes|No"
+  },
+  "sectionD": {
+    "hazardousStorage": "Yes|No",
+    "hazardousMaterials": "description if visible",
+    "storageArrangement": "Segregated|Mixed|N/A",
+    "electricalInstallation": "Good|Fair|Poor",
+    "lightningProtection": "Yes|No",
+    "emergencyLighting": "Yes|No",
+    "smokingPolicy": "Prohibited|Designated Areas|Unrestricted",
+    "flammableLiquidStorage": "description if visible",
+    "lpgStorage": "description if visible",
+    "dustHazard": "Yes|No",
+    "processHazards": "description if visible"
+  },
+  "sectionE": {
+    "generalHousekeeping": "Good|Fair|Poor",
+    "wasteManagement": "Good|Fair|Poor",
+    "maintenanceProgram": "Planned|Reactive|None",
+    "securityArrangements": "Security Guards|Guards + CCTV|CCTV Only|Alarm System|Minimal",
+    "perimeterFencing": "Yes|No",
+    "accessControl": "Yes|No",
+    "floodExposure": "Yes|No",
+    "naturalCatExposure": "None|Earthquake|Cyclone|Flood|Sandstorm|Multiple"
+  },
+  "confidence": "low|medium|high",
+  "summary": "Brief 1-2 sentence summary of what was detected in the photos"
+}
+
+Remember: ONLY fill fields you can actually observe in the photos. Empty string "" for anything not visible. Be accurate, not speculative.`;
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: [...imageContent, { type: "text", text: prompt }],
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("No text response from Claude");
+  }
+
+  let jsonText = textBlock.text.trim();
+  if (jsonText.startsWith("```")) {
+    jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+
+  const parsed: AutoFillResult = JSON.parse(jsonText);
   return parsed;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Save } from "lucide-react";
-import type { SurveyDataV2 } from "@/lib/survey-types";
+import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
+import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
 import { defaultSurveyData } from "@/lib/survey-defaults";
 import StepIndicator from "./StepIndicator";
@@ -26,13 +26,19 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   const [errors, setErrors] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
+  // Auto-fill state
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
+  const [autoFillSummary, setAutoFillSummary] = useState("");
+  const [autoFillError, setAutoFillError] = useState("");
+  const [autoFilledFields, setAutoFilledFields] = useState<number>(0);
+
   // Load from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Restore all fields except photos (too large for localStorage)
         setData((prev) => ({
           ...prev,
           sectionA: parsed.sectionA || prev.sectionA,
@@ -65,38 +71,136 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
     }
   }, [data, loaded]);
 
+  // Auto-fill from photos
+  const handleAutoFill = async () => {
+    if (data.photos.length === 0) return;
+
+    setAutoFilling(true);
+    setAutoFillError("");
+
+    try {
+      const response = await fetch("/api/autofill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photos: data.photos }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Auto-fill failed");
+      }
+
+      const result: AutoFillResult = await response.json();
+
+      // Merge auto-filled data (only fill empty fields, don't overwrite user data)
+      let fieldCount = 0;
+      setData((prev) => {
+        const merged = { ...prev };
+
+        // Merge each section — only fill fields that are currently empty
+        if (result.sectionA) {
+          const mergedA = { ...prev.sectionA };
+          for (const [key, value] of Object.entries(result.sectionA)) {
+            if (value && !mergedA[key as keyof typeof mergedA]) {
+              (mergedA as Record<string, string>)[key] = value as string;
+              fieldCount++;
+            }
+          }
+          merged.sectionA = mergedA;
+        }
+
+        if (result.sectionB) {
+          const mergedB = { ...prev.sectionB };
+          for (const [key, value] of Object.entries(result.sectionB)) {
+            if (value && !mergedB[key as keyof typeof mergedB]) {
+              (mergedB as Record<string, string>)[key] = value as string;
+              fieldCount++;
+            }
+          }
+          merged.sectionB = mergedB;
+        }
+
+        if (result.sectionC) {
+          const mergedC = { ...prev.sectionC };
+          for (const [key, value] of Object.entries(result.sectionC)) {
+            if (value && !mergedC[key as keyof typeof mergedC]) {
+              (mergedC as Record<string, string>)[key] = value as string;
+              fieldCount++;
+            }
+          }
+          merged.sectionC = mergedC;
+        }
+
+        if (result.sectionD) {
+          const mergedD = { ...prev.sectionD };
+          for (const [key, value] of Object.entries(result.sectionD)) {
+            if (value && !mergedD[key as keyof typeof mergedD]) {
+              (mergedD as Record<string, string>)[key] = value as string;
+              fieldCount++;
+            }
+          }
+          merged.sectionD = mergedD;
+        }
+
+        if (result.sectionE) {
+          const mergedE = { ...prev.sectionE };
+          for (const [key, value] of Object.entries(result.sectionE)) {
+            if (value && !mergedE[key as keyof typeof mergedE]) {
+              (mergedE as Record<string, string>)[key] = value as string;
+              fieldCount++;
+            }
+          }
+          merged.sectionE = mergedE;
+        }
+
+        return merged;
+      });
+
+      setAutoFilledFields(fieldCount);
+      setAutoFilled(true);
+      setAutoFillSummary(result.summary || "Form fields pre-filled from photos.");
+    } catch (err) {
+      setAutoFillError(
+        err instanceof Error ? err.message : "Auto-fill failed. You can still fill the form manually."
+      );
+    } finally {
+      setAutoFilling(false);
+    }
+  };
+
+  // Step order: 0=Photos, 1=A, 2=B, 3=C, 4=D, 5=E, 6=Review
   const validateStep = useCallback(
     (step: number): string[] => {
       const errs: string[] = [];
       switch (step) {
-        case 0: // Section A
+        case 0: // Photos — optional but encouraged
+          break;
+        case 1: // Section A
           if (!data.sectionA.insuredName.trim()) errs.push("Insured name is required");
           if (!data.sectionA.address.trim()) errs.push("Property address is required");
           if (!data.sectionA.surveyorName.trim()) errs.push("Surveyor name is required");
           if (!data.sectionA.occupancy) errs.push("Occupancy type is required");
           break;
-        case 1: // Section B
+        case 2: // Section B
           if (!data.sectionB.structuralFrame) errs.push("Structural frame is required");
           if (!data.sectionB.externalWalls) errs.push("External walls is required");
           if (!data.sectionB.roofStructure) errs.push("Roof structure is required");
           if (!data.sectionB.buildingCondition) errs.push("Building condition is required");
           break;
-        case 2: // Section C
+        case 3: // Section C
           if (!data.sectionC.fireDetectionSystem) errs.push("Fire detection status is required");
           if (!data.sectionC.sprinklerSystem) errs.push("Sprinkler status is required");
           if (!data.sectionC.fireExtinguishers) errs.push("Fire extinguisher status is required");
           break;
-        case 3: // Section D
+        case 4: // Section D
           if (!data.sectionD.hazardousStorage) errs.push("Hazardous storage status is required");
           if (!data.sectionD.electricalInstallation) errs.push("Electrical installation condition is required");
           break;
-        case 4: // Section E
+        case 5: // Section E
           if (!data.sectionE.generalHousekeeping) errs.push("Housekeeping rating is required");
           if (!data.sectionE.maintenanceProgram) errs.push("Maintenance program is required");
           break;
-        case 5: // Photos — optional but encouraged
-          break;
-        case 6: // Review — validate all required fields one more time
+        case 6: // Review
           if (!data.sectionA.address.trim()) errs.push("Property address is missing");
           if (!data.sectionA.surveyorName.trim()) errs.push("Surveyor name is missing");
           break;
@@ -136,53 +240,52 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
       setErrors(errs);
       return;
     }
-    // Clear saved data
     localStorage.removeItem(STORAGE_KEY);
     onSubmit(data);
   };
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0:
+      case 0: // Photos first!
+        return (
+          <PhotoStep
+            photos={data.photos}
+            onChange={(photos) => setData((prev) => ({ ...prev, photos }))}
+          />
+        );
+      case 1:
         return (
           <SectionAForm
             data={data.sectionA}
             onChange={(sectionA) => setData((prev) => ({ ...prev, sectionA }))}
           />
         );
-      case 1:
+      case 2:
         return (
           <SectionBForm
             data={data.sectionB}
             onChange={(sectionB) => setData((prev) => ({ ...prev, sectionB }))}
           />
         );
-      case 2:
+      case 3:
         return (
           <SectionCForm
             data={data.sectionC}
             onChange={(sectionC) => setData((prev) => ({ ...prev, sectionC }))}
           />
         );
-      case 3:
+      case 4:
         return (
           <SectionDForm
             data={data.sectionD}
             onChange={(sectionD) => setData((prev) => ({ ...prev, sectionD }))}
           />
         );
-      case 4:
+      case 5:
         return (
           <SectionEForm
             data={data.sectionE}
             onChange={(sectionE) => setData((prev) => ({ ...prev, sectionE }))}
-          />
-        );
-      case 5:
-        return (
-          <PhotoStep
-            photos={data.photos}
-            onChange={(photos) => setData((prev) => ({ ...prev, photos }))}
           />
         );
       case 6:
@@ -193,10 +296,28 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   };
 
   const isLastStep = currentStep === WIZARD_STEPS.length - 1;
+  const isPhotoStep = currentStep === 0;
 
   return (
     <div className="mx-auto max-w-3xl">
       <StepIndicator currentStep={currentStep} />
+
+      {/* Auto-fill success banner */}
+      {autoFilled && !autoFilling && currentStep > 0 && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">
+                AI pre-filled {autoFilledFields} fields from your photos
+              </p>
+              <p className="mt-0.5 text-xs text-emerald-700">
+                {autoFillSummary} Review and correct any fields below.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error messages */}
       {errors.length > 0 && (
@@ -214,6 +335,67 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         {renderStep()}
       </div>
+
+      {/* Auto-fill banner after photo upload (shown on photo step) */}
+      {isPhotoStep && data.photos.length > 0 && !autoFilled && (
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          {autoFilling ? (
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">
+                  AI is analyzing your photos...
+                </p>
+                <p className="text-xs text-blue-700">
+                  Extracting building details, fire protection, and more to pre-fill the checklist.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 sm:items-center sm:justify-between flex-col sm:flex-row">
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-5 w-5 shrink-0 text-blue-600 mt-0.5 sm:mt-0" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-800">
+                    Auto-fill checklist from photos?
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    AI will scan your {data.photos.length} photo{data.photos.length > 1 ? "s" : ""} and pre-fill observable details. You can review and correct everything.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoFill}
+                className="mt-3 sm:mt-0 flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700 shrink-0"
+              >
+                <Sparkles className="h-4 w-4" />
+                Auto-Fill
+              </button>
+            </div>
+          )}
+          {autoFillError && (
+            <p className="mt-2 text-xs text-red-600">{autoFillError}</p>
+          )}
+        </div>
+      )}
+
+      {/* Already auto-filled indicator on photo step */}
+      {isPhotoStep && autoFilled && (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">
+                {autoFilledFields} fields pre-filled from photos
+              </p>
+              <p className="text-xs text-emerald-700">
+                {autoFillSummary} Click Next to review the auto-filled checklist.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation buttons */}
       <div className="mt-6 flex items-center justify-between">
@@ -241,7 +423,8 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
             <button
               type="button"
               onClick={handleNext}
-              className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-[var(--primary-light)] hover:shadow-xl"
+              disabled={autoFilling}
+              className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-[var(--primary-light)] hover:shadow-xl disabled:opacity-50"
             >
               Next
               <ChevronRight className="h-4 w-4" />

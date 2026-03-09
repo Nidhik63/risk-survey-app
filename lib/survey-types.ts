@@ -148,6 +148,20 @@ export interface ComplianceItem {
 }
 
 // ============================================================
+// Auto-Fill Result (returned from photo pre-analysis)
+// ============================================================
+
+export interface AutoFillResult {
+  sectionA: Partial<SectionA>;
+  sectionB: Partial<SectionB>;
+  sectionC: Partial<SectionC>;
+  sectionD: Partial<SectionD>;
+  sectionE: Partial<SectionE>;
+  confidence: string; // "low" | "medium" | "high"
+  summary: string;    // Brief description of what was detected
+}
+
+// ============================================================
 // Section metadata for wizard UI
 // ============================================================
 
@@ -160,7 +174,7 @@ export const SECTION_META = [
 ] as const;
 
 export const WIZARD_STEPS = [
-  ...SECTION_META.map(s => ({ id: s.id, title: s.title })),
   { id: "photos", title: "Site Photos" },
+  ...SECTION_META.map(s => ({ id: s.id, title: s.title })),
   { id: "review", title: "Review & Submit" },
 ] as const;
