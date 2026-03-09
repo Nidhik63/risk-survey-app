@@ -213,7 +213,7 @@ SECTION A — GENERAL INFORMATION:
 - Contact Person: ${sectionA.contactPerson} (${sectionA.contactPhone})
 - Date of Survey: ${sectionA.dateOfSurvey}
 - Surveyor: ${sectionA.surveyorName}
-- Occupancy: ${sectionA.occupancy} (${sectionA.occupancyDetails})
+- Occupancy: ${sectionA.occupancy === "Other" ? sectionA.occupancyOther : sectionA.occupancy} (${sectionA.occupancyDetails})
 - Building Age: ${sectionA.buildingAge} years
 - Total Area: ${sectionA.totalArea} sq m
 - Floors: ${sectionA.numberOfFloors} (Basements: ${sectionA.numberOfBasements})

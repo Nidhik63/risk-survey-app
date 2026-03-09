@@ -23,13 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (photos.length > 20) {
-      return NextResponse.json(
-        { error: "Maximum 20 photos allowed" },
-        { status: 400 }
-      );
-    }
-
     const result = await autoFillFromPhotos(photos);
     return NextResponse.json(result);
   } catch (error) {

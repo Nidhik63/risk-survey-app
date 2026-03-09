@@ -11,6 +11,7 @@ export interface SectionA {
   dateOfSurvey: string;
   surveyorName: string;
   occupancy: string;
+  occupancyOther: string;
   occupancyDetails: string;
   buildingAge: string;
   totalArea: string;

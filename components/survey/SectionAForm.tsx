@@ -14,6 +14,8 @@ interface SectionAFormProps {
 const OCCUPANCY_OPTIONS = [
   { value: "Warehouse", label: "Warehouse" },
   { value: "Manufacturing", label: "Manufacturing / Factory" },
+  { value: "Manufacturing + Warehouse", label: "Manufacturing + Warehouse" },
+  { value: "Manufacturing + Warehouse + Office", label: "Manufacturing + Warehouse + Office" },
   { value: "Office", label: "Office Building" },
   { value: "Retail", label: "Retail / Shopping" },
   { value: "Residential", label: "Residential" },
@@ -112,6 +114,16 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
             placeholder="Describe what is stored/manufactured"
           />
         </div>
+
+        {data.occupancy === "Other" && (
+          <TextField
+            label="Please specify occupancy type"
+            value={data.occupancyOther || ""}
+            onChange={(v) => update("occupancyOther" as keyof SectionA, v)}
+            placeholder="e.g. Data Center, Hospital, School, etc."
+            required
+          />
+        )}
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <TextField

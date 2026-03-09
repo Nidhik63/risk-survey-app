@@ -12,7 +12,7 @@ interface PhotoStepProps {
   onChange: (photos: TaggedPhoto[]) => void;
 }
 
-const MAX_PHOTOS = 20;
+// No hard limit — engineers may need many photos for large sites
 
 const SECTION_OPTIONS = [
   { value: "general", label: "General / Overview" },
@@ -35,11 +35,9 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
 
   const addPhotos = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    const remaining = MAX_PHOTOS - photos.length;
-    const toProcess = fileArray.slice(0, remaining);
 
     const newPhotos: TaggedPhoto[] = [];
-    for (const file of toProcess) {
+    for (const file of fileArray) {
       const dataUrl = await readFileAsDataUrl(file);
       const compressed = await compressImage(dataUrl);
       newPhotos.push({
@@ -102,15 +100,14 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
           Drag & drop photos here
         </p>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          or use the buttons below ({photos.length}/{MAX_PHOTOS} photos)
+          or use the buttons below ({photos.length} photo{photos.length !== 1 ? "s" : ""} uploaded)
         </p>
 
         <div className="mt-4 flex justify-center gap-3">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={photos.length >= MAX_PHOTOS}
-            className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-[var(--primary-light)] disabled:opacity-50"
+            className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-[var(--primary-light)]"
           >
             <span className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
@@ -120,8 +117,7 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
           <button
             type="button"
             onClick={() => cameraInputRef.current?.click()}
-            disabled={photos.length >= MAX_PHOTOS}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition-all hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition-all hover:bg-gray-50"
           >
             <span className="flex items-center gap-2">
               <Camera className="h-4 w-4" />

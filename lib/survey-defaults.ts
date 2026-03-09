@@ -15,6 +15,7 @@ export const defaultSectionA: SectionA = {
   dateOfSurvey: new Date().toISOString().split("T")[0],
   surveyorName: "",
   occupancy: "",
+  occupancyOther: "",
   occupancyDetails: "",
   buildingAge: "",
   totalArea: "",
