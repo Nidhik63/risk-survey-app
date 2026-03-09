@@ -49,24 +49,47 @@ export default function SurveyPage() {
     }, 3000);
 
     try {
+      // Limit photos sent to Claude to avoid payload size limits
+      // Keep max 15 photos for API (all photos still shown in report appendix)
+      const MAX_API_PHOTOS = 15;
+      const apiData: SurveyDataV2 = {
+        ...data,
+        photos: data.photos.length > MAX_API_PHOTOS
+          ? data.photos.slice(0, MAX_API_PHOTOS)
+          : data.photos,
+      };
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           version: 2,
-          surveyData: data,
+          surveyData: apiData,
         }),
       });
 
       clearInterval(stepInterval);
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Analysis failed");
+        let errMsg = "Analysis failed";
+        try {
+          const errData = await response.json();
+          errMsg = errData.error || errMsg;
+        } catch {
+          errMsg = `Server error (${response.status}). The request may be too large — try reducing photo count or size.`;
+        }
+        throw new Error(errMsg);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error("Failed to parse analysis response. Please try again.");
+      }
+
       setAnalysis(result.analysis);
+      setSurveyData(data); // Keep ALL photos for report appendix
       setAppState("report");
     } catch (err) {
       clearInterval(stepInterval);

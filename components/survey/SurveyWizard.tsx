@@ -86,74 +86,51 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Auto-fill failed");
+        let errMsg = "Auto-fill failed";
+        try {
+          const errData = await response.json();
+          errMsg = errData.error || errMsg;
+        } catch {
+          errMsg = `Server error (${response.status}). Try with fewer photos.`;
+        }
+        throw new Error(errMsg);
       }
 
       const result: AutoFillResult = await response.json();
 
-      // Merge auto-filled data (only fill empty fields, don't overwrite user data)
+      // Count non-empty fields from Claude's response BEFORE merging
       let fieldCount = 0;
+      const sections = [result.sectionA, result.sectionB, result.sectionC, result.sectionD, result.sectionE];
+      for (const section of sections) {
+        if (section) {
+          for (const value of Object.values(section)) {
+            if (value && typeof value === "string" && value.trim()) fieldCount++;
+          }
+        }
+      }
+
+      // Merge auto-filled data (only fill empty fields, don't overwrite user data)
       setData((prev) => {
-        const merged = { ...prev };
-
-        // Merge each section — only fill fields that are currently empty
-        if (result.sectionA) {
-          const mergedA = { ...prev.sectionA };
-          for (const [key, value] of Object.entries(result.sectionA)) {
-            if (value && !mergedA[key as keyof typeof mergedA]) {
-              (mergedA as Record<string, string>)[key] = value as string;
-              fieldCount++;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mergeFields = (existing: any, incoming: any) => {
+          if (!incoming) return existing;
+          const out = { ...existing };
+          for (const [key, value] of Object.entries(incoming)) {
+            if (value && typeof value === "string" && (value as string).trim() && !out[key]) {
+              out[key] = value;
             }
           }
-          merged.sectionA = mergedA;
-        }
+          return out;
+        };
 
-        if (result.sectionB) {
-          const mergedB = { ...prev.sectionB };
-          for (const [key, value] of Object.entries(result.sectionB)) {
-            if (value && !mergedB[key as keyof typeof mergedB]) {
-              (mergedB as Record<string, string>)[key] = value as string;
-              fieldCount++;
-            }
-          }
-          merged.sectionB = mergedB;
-        }
-
-        if (result.sectionC) {
-          const mergedC = { ...prev.sectionC };
-          for (const [key, value] of Object.entries(result.sectionC)) {
-            if (value && !mergedC[key as keyof typeof mergedC]) {
-              (mergedC as Record<string, string>)[key] = value as string;
-              fieldCount++;
-            }
-          }
-          merged.sectionC = mergedC;
-        }
-
-        if (result.sectionD) {
-          const mergedD = { ...prev.sectionD };
-          for (const [key, value] of Object.entries(result.sectionD)) {
-            if (value && !mergedD[key as keyof typeof mergedD]) {
-              (mergedD as Record<string, string>)[key] = value as string;
-              fieldCount++;
-            }
-          }
-          merged.sectionD = mergedD;
-        }
-
-        if (result.sectionE) {
-          const mergedE = { ...prev.sectionE };
-          for (const [key, value] of Object.entries(result.sectionE)) {
-            if (value && !mergedE[key as keyof typeof mergedE]) {
-              (mergedE as Record<string, string>)[key] = value as string;
-              fieldCount++;
-            }
-          }
-          merged.sectionE = mergedE;
-        }
-
-        return merged;
+        return {
+          ...prev,
+          sectionA: mergeFields(prev.sectionA, result.sectionA),
+          sectionB: mergeFields(prev.sectionB, result.sectionB),
+          sectionC: mergeFields(prev.sectionC, result.sectionC),
+          sectionD: mergeFields(prev.sectionD, result.sectionD),
+          sectionE: mergeFields(prev.sectionE, result.sectionE),
+        };
       });
 
       setAutoFilledFields(fieldCount);
