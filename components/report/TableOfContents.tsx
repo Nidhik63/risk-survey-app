@@ -1,6 +1,6 @@
 "use client";
 
-import { List } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 interface TocItem {
   id: string;
@@ -15,55 +15,47 @@ interface TableOfContentsProps {
 
 function getGradeColor(grade: string) {
   switch (grade) {
-    case "Low":
-      return "bg-emerald-100 text-emerald-700";
-    case "Moderate":
-      return "bg-amber-100 text-amber-700";
-    case "High":
-      return "bg-orange-100 text-orange-700";
-    case "Critical":
-      return "bg-red-100 text-red-700";
-    default:
-      return "bg-gray-100 text-gray-700";
+    case "Low": return "#10b981";
+    case "Moderate": return "#f59e0b";
+    case "High": return "#f97316";
+    case "Critical": return "#ef4444";
+    default: return "#6b7280";
   }
 }
 
 export default function TableOfContents({ items }: TableOfContentsProps) {
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <List className="h-5 w-5 text-[var(--primary)]" />
-        <h2 className="text-lg font-bold text-[var(--foreground)]">Table of Contents</h2>
-      </div>
-      <div className="space-y-1">
+    <div className="rounded-3xl border border-gray-100 bg-[var(--surface)] p-6 sm:p-8">
+      <h2 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest mb-4">
+        Contents
+      </h2>
+      <div className="space-y-0.5">
         {items.map((item, index) => (
           <button
             key={item.id}
             onClick={() => scrollTo(item.id)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all hover:bg-gray-50"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all hover:bg-gray-50 group"
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-[var(--muted)]">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[11px] font-bold text-[var(--muted)] group-hover:bg-gray-200 transition-colors">
               {index + 1}
             </span>
-            <span className="flex-1 text-sm font-medium text-[var(--foreground)]">
+            <span className="flex-1 text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors">
               {item.label}
             </span>
             {item.grade && (
               <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${getGradeColor(
-                  item.grade
-                )}`}
+                className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold text-white"
+                style={{ backgroundColor: getGradeColor(item.grade) }}
               >
-                {item.score}/100
+                {item.score}
               </span>
             )}
+            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[var(--primary)] transition-colors shrink-0" />
           </button>
         ))}
       </div>

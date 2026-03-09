@@ -7,13 +7,13 @@ interface PropertySummaryProps {
   surveyData: SurveyDataV2;
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function DataCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between border-b border-gray-100 py-2.5 last:border-0">
-      <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">{label}</span>
-      <span className="text-sm font-semibold text-[var(--foreground)] text-right max-w-[60%]">
-        {value || "—"}
-      </span>
+    <div className="rounded-xl bg-gray-50/80 border border-gray-100 px-4 py-3">
+      <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">{label}</p>
+      <p className="mt-1.5 text-sm font-semibold text-[var(--foreground)] leading-snug">
+        {value || "\u2014"}
+      </p>
     </div>
   );
 }
@@ -22,32 +22,30 @@ export default function PropertySummary({ surveyData }: PropertySummaryProps) {
   const { sectionA, sectionB } = surveyData;
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Building2 className="h-5 w-5 text-[var(--primary)]" />
-        <h2 className="text-lg font-bold text-[var(--foreground)]">Property Summary</h2>
+    <div className="rounded-3xl border border-gray-100 bg-[var(--surface)] p-6 sm:p-8">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600">
+          <Building2 className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-[var(--foreground)] tracking-tight">Property Summary</h2>
+          <p className="text-xs text-[var(--muted)]">Key details at a glance</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider mb-2">General Details</h3>
-          <SummaryRow label="Insured" value={sectionA.insuredName} />
-          <SummaryRow label="Address" value={sectionA.address} />
-          <SummaryRow label="Occupancy" value={`${sectionA.occupancy}${sectionA.occupancyDetails ? ` — ${sectionA.occupancyDetails}` : ""}`} />
-          <SummaryRow label="Total Area" value={sectionA.totalArea ? `${sectionA.totalArea} sq m` : ""} />
-          <SummaryRow label="Building Age" value={sectionA.buildingAge ? `${sectionA.buildingAge} years` : ""} />
-          <SummaryRow label="Floors" value={sectionA.numberOfFloors} />
-          <SummaryRow label="Basements" value={sectionA.numberOfBasements} />
-        </div>
-        <div>
-          <h3 className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider mb-2">Construction</h3>
-          <SummaryRow label="Frame" value={sectionB.structuralFrame} />
-          <SummaryRow label="External Walls" value={sectionB.externalWalls} />
-          <SummaryRow label="Roof Structure" value={sectionB.roofStructure} />
-          <SummaryRow label="Roof Covering" value={sectionB.roofCovering} />
-          <SummaryRow label="Insulation" value={sectionB.insulationType} />
-          <SummaryRow label="Condition" value={sectionB.buildingCondition} />
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <DataCard label="Insured" value={sectionA.insuredName} />
+        <DataCard label="Address" value={sectionA.address} />
+        <DataCard label="Occupancy" value={`${sectionA.occupancy}${sectionA.occupancyDetails ? ` \u2014 ${sectionA.occupancyDetails}` : ""}`} />
+        <DataCard label="Total Area" value={sectionA.totalArea ? `${sectionA.totalArea} sqm` : ""} />
+        <DataCard label="Building Age" value={sectionA.buildingAge ? `${sectionA.buildingAge} years` : ""} />
+        <DataCard label="Floors" value={sectionA.numberOfFloors} />
+        <DataCard label="Frame" value={sectionB.structuralFrame} />
+        <DataCard label="Walls" value={sectionB.externalWalls} />
+        <DataCard label="Roof" value={`${sectionB.roofStructure}${sectionB.roofCovering ? ` / ${sectionB.roofCovering}` : ""}`} />
+        <DataCard label="Condition" value={sectionB.buildingCondition} />
+        <DataCard label="Insulation" value={sectionB.insulationType} />
+        <DataCard label="Surroundings" value={sectionA.surroundingExposures} />
       </div>
     </div>
   );
