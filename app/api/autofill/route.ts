@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { autoFillFromPhotos } from "@/lib/claude";
 import type { TaggedPhoto } from "@/lib/survey-types";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {

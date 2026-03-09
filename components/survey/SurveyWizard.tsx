@@ -79,10 +79,16 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
     setAutoFillError("");
 
     try {
+      // Limit photos sent to API (Vercel payload limit) — keep all locally
+      const MAX_AUTOFILL_PHOTOS = 15;
+      const photosForApi = data.photos.length > MAX_AUTOFILL_PHOTOS
+        ? data.photos.slice(0, MAX_AUTOFILL_PHOTOS)
+        : data.photos;
+
       const response = await fetch("/api/autofill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photos: data.photos }),
+        body: JSON.stringify({ photos: photosForApi }),
       });
 
       if (!response.ok) {
@@ -125,10 +131,11 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
         };
 
         // Apply AI photo categories (section + caption) to each photo
+        // Only the first MAX_AUTOFILL_PHOTOS were sent, so only those get categories
         let updatedPhotos = prev.photos;
         if (result.photoCategories && result.photoCategories.length > 0) {
           updatedPhotos = prev.photos.map((photo, idx) => {
-            const cat = result.photoCategories[idx];
+            const cat = idx < result.photoCategories.length ? result.photoCategories[idx] : null;
             if (!cat) return photo;
             return {
               ...photo,
