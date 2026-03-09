@@ -5,50 +5,38 @@ import {
   Shield,
   ArrowLeft,
   Loader2,
-  Send,
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
-import PhotoUploader from "@/components/PhotoUploader";
-import SiteDetailsForm from "@/components/SiteDetailsForm";
-import RiskReport from "@/components/RiskReport";
-import type { RiskAnalysis, SiteDetails } from "@/lib/risk-scoring";
+import SurveyWizard from "@/components/survey/SurveyWizard";
+import RIReport from "@/components/report/RIReport";
+import type { SurveyDataV2, RIReportAnalysis } from "@/lib/survey-types";
 
 type AppState = "form" | "analyzing" | "report";
 
 const ANALYSIS_STEPS = [
-  "Uploading images for analysis...",
-  "Scanning for structural risks...",
-  "Evaluating fire safety hazards...",
-  "Assessing water and flood risks...",
-  "Checking electrical safety...",
-  "Analyzing environmental hazards...",
-  "Reviewing security measures...",
-  "Generating risk report...",
+  "Uploading survey data & images...",
+  "Analyzing general property information...",
+  "Evaluating construction & structural details...",
+  "Assessing fire protection systems...",
+  "Reviewing EHS & hazard information...",
+  "Inspecting housekeeping & maintenance...",
+  "Cross-referencing photos with checklist...",
+  "Generating compliance assessment...",
+  "Building professional RI report...",
+  "Finalizing recommendations...",
 ];
 
 export default function SurveyPage() {
   const [appState, setAppState] = useState<AppState>("form");
-  const [images, setImages] = useState<string[]>([]);
-  const [siteDetails, setSiteDetails] = useState<SiteDetails>({
-    address: "",
-    buildingType: "",
-    yearBuilt: "",
-    floors: "",
-    occupancy: "",
-    surveyorName: "",
-  });
-  const [analysis, setAnalysis] = useState<RiskAnalysis | null>(null);
+  const [surveyData, setSurveyData] = useState<SurveyDataV2 | null>(null);
+  const [analysis, setAnalysis] = useState<RIReportAnalysis | null>(null);
   const [error, setError] = useState<string>("");
   const [analysisStep, setAnalysisStep] = useState(0);
 
-  const canSubmit =
-    images.length > 0 &&
-    siteDetails.address.trim() !== "" &&
-    siteDetails.buildingType !== "";
-
-  const handleAnalyze = async () => {
+  const handleSubmit = async (data: SurveyDataV2) => {
     setError("");
+    setSurveyData(data);
     setAppState("analyzing");
     setAnalysisStep(0);
 
@@ -58,24 +46,27 @@ export default function SurveyPage() {
         if (prev < ANALYSIS_STEPS.length - 1) return prev + 1;
         return prev;
       });
-    }, 2500);
+    }, 3000);
 
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images, siteDetails }),
+        body: JSON.stringify({
+          version: 2,
+          surveyData: data,
+        }),
       });
 
       clearInterval(stepInterval);
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Analysis failed");
+        const errData = await response.json();
+        throw new Error(errData.error || "Analysis failed");
       }
 
-      const result: RiskAnalysis = await response.json();
-      setAnalysis(result);
+      const result = await response.json();
+      setAnalysis(result.analysis);
       setAppState("report");
     } catch (err) {
       clearInterval(stepInterval);
@@ -87,25 +78,17 @@ export default function SurveyPage() {
   };
 
   const handleNewSurvey = () => {
-    setImages([]);
-    setSiteDetails({
-      address: "",
-      buildingType: "",
-      yearBuilt: "",
-      floors: "",
-      occupancy: "",
-      surveyorName: "",
-    });
+    setSurveyData(null);
     setAnalysis(null);
     setAppState("form");
   };
 
   // Report view
-  if (appState === "report" && analysis) {
+  if (appState === "report" && analysis && surveyData) {
     return (
-      <RiskReport
+      <RIReport
         analysis={analysis}
-        siteDetails={siteDetails}
+        surveyData={surveyData}
         onBack={handleNewSurvey}
       />
     );
@@ -113,6 +96,7 @@ export default function SurveyPage() {
 
   // Analyzing view
   if (appState === "analyzing") {
+    const photoCount = surveyData?.photos.length || 0;
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
         <div className="mx-auto max-w-md px-6 text-center">
@@ -122,14 +106,15 @@ export default function SurveyPage() {
             </div>
           </div>
           <h2 className="text-xl font-bold text-[var(--foreground)]">
-            Analyzing Property
+            Generating RI Report
           </h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Our AI is inspecting your {images.length} photo
-            {images.length > 1 ? "s" : ""} across 6 risk categories
+            Our AI is analyzing your survey data
+            {photoCount > 0 ? ` and ${photoCount} photo${photoCount > 1 ? "s" : ""}` : ""}
+            {" "}to produce a professional Risk Inspection Report
           </p>
 
-          <div className="mt-8 space-y-3">
+          <div className="mt-8 space-y-2.5">
             {ANALYSIS_STEPS.map((step, index) => (
               <div
                 key={index}
@@ -161,7 +146,7 @@ export default function SurveyPage() {
     );
   }
 
-  // Form view
+  // Form view — V2 wizard
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Nav */}
@@ -186,15 +171,14 @@ export default function SurveyPage() {
         </div>
       </nav>
 
-      {/* Form */}
+      {/* Wizard */}
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">
-            New Risk Survey
+            Property Risk Survey
           </h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Upload site photos and fill in property details to generate your AI
-            risk assessment
+            Complete the checklist below. Your progress is automatically saved.
           </p>
         </div>
 
@@ -205,39 +189,7 @@ export default function SurveyPage() {
           </div>
         )}
 
-        <div className="space-y-8">
-          {/* Photo upload section */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-            <PhotoUploader images={images} onImagesChange={setImages} />
-          </div>
-
-          {/* Site details section */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-            <SiteDetailsForm
-              siteDetails={siteDetails}
-              onSiteDetailsChange={setSiteDetails}
-            />
-          </div>
-
-          {/* Submit */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleAnalyze}
-              disabled={!canSubmit}
-              className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-8 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-[var(--primary-light)] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-            >
-              <Send className="h-5 w-5" />
-              Analyze Risk
-            </button>
-          </div>
-
-          {!canSubmit && (
-            <p className="text-center text-sm text-[var(--muted)]">
-              Please upload at least 1 photo, and enter the property address and
-              building type to continue
-            </p>
-          )}
-        </div>
+        <SurveyWizard onSubmit={handleSubmit} />
       </div>
     </div>
   );

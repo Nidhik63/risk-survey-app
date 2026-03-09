@@ -9,31 +9,32 @@ import {
   Zap,
   Flame,
   Droplets,
-  Leaf,
+  ClipboardList,
+  CheckCircle2,
 } from "lucide-react";
 
-function CategoryItem({
+function FeatureCard({
   icon: Icon,
-  name,
-  weight,
+  title,
+  desc,
   color,
 }: {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  name: string;
-  weight: string;
+  title: string;
+  desc: string;
   color: string;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:shadow-md">
+    <div className="flex items-start gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:shadow-md">
       <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-        style={{ backgroundColor: `${color}12` }}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+        style={{ backgroundColor: `${color}15` }}
       >
-        <Icon className="h-6 w-6" style={{ color }} />
+        <Icon className="h-5 w-5" style={{ color }} />
       </div>
       <div>
-        <h3 className="font-semibold text-[var(--foreground)]">{name}</h3>
-        <p className="text-sm text-[var(--muted)]">Weight: {weight}</p>
+        <h3 className="font-semibold text-[var(--foreground)]">{title}</h3>
+        <p className="mt-1 text-sm text-[var(--muted)]">{desc}</p>
       </div>
     </div>
   );
@@ -70,17 +71,17 @@ export default function Home() {
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-blue-100 backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
-              AI-Powered Risk Assessment
+              Professional Risk Inspection Reports
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Smart Property
+              AI-Powered
               <br />
               <span className="text-[var(--accent-light)]">Risk Surveys</span>
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-blue-100">
-              Upload site photos and get scientifically-backed risk scores in
-              minutes. Powered by advanced AI vision analysis for insurance
-              professionals.
+              Complete GCC-standard property checklists, upload site photos, and
+              generate professional Risk Inspection Reports in minutes. Built for
+              insurance risk engineers.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
@@ -102,29 +103,29 @@ export default function Home() {
             How It Works
           </h2>
           <p className="mt-3 text-[var(--muted)]">
-            Three simple steps to a comprehensive risk assessment
+            From checklist to professional report in three steps
           </p>
         </div>
 
         <div className="mt-14 grid gap-8 sm:grid-cols-3">
           {[
             {
-              icon: Camera,
+              icon: ClipboardList,
               step: "01",
-              title: "Capture",
-              desc: "Take photos of the property using your phone or upload existing images from your device.",
+              title: "Complete Checklist",
+              desc: "Fill in the property survey checklist covering construction, fire protection, EHS, and maintenance across 5 comprehensive sections.",
             },
             {
-              icon: Zap,
+              icon: Camera,
               step: "02",
-              title: "Analyze",
-              desc: "Our AI engine examines every image across 6 scientific risk categories to identify hazards.",
+              title: "Upload Photos",
+              desc: "Take or upload site photos and tag them by section. Our AI cross-references visual evidence with your checklist data.",
             },
             {
               icon: FileText,
               step: "03",
-              title: "Report",
-              desc: "Get a detailed risk report with scores, findings, and recommendations. Download as PDF.",
+              title: "Get RI Report",
+              desc: "Receive a professional Risk Inspection Report with section analysis, compliance tables, and prioritized recommendations.",
             },
           ].map((item) => (
             <div
@@ -148,25 +149,55 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Risk Categories */}
+      {/* V2 Features */}
       <section className="border-t border-[var(--border)] bg-gray-50">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-[var(--foreground)]">
-              6 Risk Categories
+              Professional-Grade Reports
             </h2>
             <p className="mt-3 text-[var(--muted)]">
-              Comprehensive analysis across all critical property risk factors
+              Matching GCC insurance industry standards with AI-powered analysis
             </p>
           </div>
 
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <CategoryItem icon={Building2} name="Structural Integrity" weight="25%" color="#3b82f6" />
-            <CategoryItem icon={Flame} name="Fire Safety" weight="20%" color="#ef4444" />
-            <CategoryItem icon={Droplets} name="Water & Flood Risk" weight="15%" color="#06b6d4" />
-            <CategoryItem icon={Zap} name="Electrical Safety" weight="15%" color="#f59e0b" />
-            <CategoryItem icon={Leaf} name="Environmental Hazards" weight="15%" color="#22c55e" />
-            <CategoryItem icon={Shield} name="Security & Access" weight="10%" color="#8b5cf6" />
+            <FeatureCard
+              icon={Building2}
+              title="5-Section Checklist"
+              desc="General info, construction, fire protection, EHS hazards, and housekeeping"
+              color="#3b82f6"
+            />
+            <FeatureCard
+              icon={Flame}
+              title="Fire Protection Analysis"
+              desc="Detection systems, sprinklers, extinguishers, emergency exits, and brigade access"
+              color="#ef4444"
+            />
+            <FeatureCard
+              icon={CheckCircle2}
+              title="Compliance Tables"
+              desc="Color-coded compliance status for all critical safety and security items"
+              color="#22c55e"
+            />
+            <FeatureCard
+              icon={Zap}
+              title="AI Photo Analysis"
+              desc="Cross-references your checklist data with visual evidence from tagged photos"
+              color="#f59e0b"
+            />
+            <FeatureCard
+              icon={Droplets}
+              title="Risk Scoring"
+              desc="Section-by-section scoring (1-100) with overall risk grade and executive summary"
+              color="#06b6d4"
+            />
+            <FeatureCard
+              icon={FileText}
+              title="PDF Export"
+              desc="Download professional RI reports as PDF or print directly from your browser"
+              color="#8b5cf6"
+            />
           </div>
         </div>
       </section>
@@ -175,10 +206,10 @@ export default function Home() {
       <section className="border-t border-[var(--border)]">
         <div className="mx-auto max-w-6xl px-6 py-20 text-center">
           <h2 className="text-3xl font-bold text-[var(--foreground)]">
-            Ready to assess your next property?
+            Ready to survey your next property?
           </h2>
           <p className="mt-3 text-[var(--muted)]">
-            Start a risk survey in under a minute
+            Complete the checklist and get a professional RI report in minutes
           </p>
           <Link
             href="/survey"
@@ -193,7 +224,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto max-w-6xl px-6 py-6 text-center text-sm text-[var(--muted)]">
-          RiskLens &mdash; AI-Powered Property Risk Assessment
+          RiskLens &mdash; AI-Powered Property Risk Inspection
         </div>
       </footer>
     </div>

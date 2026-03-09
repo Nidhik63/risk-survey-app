@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { RiskAnalysis, SiteDetails } from "./risk-scoring";
+import type { SurveyDataV2, RIReportAnalysis, TaggedPhoto } from "./survey-types";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -121,7 +122,7 @@ You MUST respond with ONLY valid JSON in this exact format (no markdown, no code
 Be thorough and specific. Reference actual visual evidence from the images. Each category should have at least 1-3 findings. Provide actionable, professional recommendations.`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6-20250514",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 4096,
     messages: [
       {
@@ -136,7 +137,12 @@ Be thorough and specific. Reference actual visual evidence from the images. Each
     throw new Error("No text response from Claude");
   }
 
-  const parsed = JSON.parse(textBlock.text);
+  // Strip markdown code blocks if present
+  let jsonText = textBlock.text.trim();
+  if (jsonText.startsWith("```")) {
+    jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+  const parsed = JSON.parse(jsonText);
 
   // Calculate overall score
   let weightedSum = 0;
@@ -160,4 +166,313 @@ Be thorough and specific. Reference actual visual evidence from the images. Each
     categories: parsed.categories,
     recommendations: parsed.recommendations,
   };
+}
+
+// ============================================================
+// V2: Professional RI Report Analysis
+// ============================================================
+
+export async function analyzeRiskImagesV2(
+  surveyData: SurveyDataV2
+): Promise<RIReportAnalysis> {
+  const { sectionA, sectionB, sectionC, sectionD, sectionE, photos } = surveyData;
+
+  // Build image content blocks with section tags
+  const imageContent: Anthropic.Messages.ContentBlockParam[] = [];
+  const photoDescriptions: string[] = [];
+
+  photos.forEach((photo, index) => {
+    const match = photo.dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+    const mediaType = (match?.[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp") || "image/jpeg";
+    const data = match?.[2] || photo.dataUrl;
+
+    imageContent.push({
+      type: "text" as const,
+      text: `[Photo ${index + 1} — Section: ${photo.section.toUpperCase()}${photo.caption ? ` — Caption: ${photo.caption}` : ""}]`,
+    });
+    imageContent.push({
+      type: "image" as const,
+      source: {
+        type: "base64" as const,
+        media_type: mediaType,
+        data: data,
+      },
+    });
+    photoDescriptions.push(
+      `Photo ${index + 1}: Section ${photo.section.toUpperCase()}${photo.caption ? ` (${photo.caption})` : ""}`
+    );
+  });
+
+  const prompt = `You are a certified property risk engineer conducting a professional Risk Inspection (RI) survey for insurance underwriting purposes. Analyze the provided site photos AND the surveyor's checklist data to produce a comprehensive RI Report.
+
+=== SURVEYOR'S CHECKLIST DATA ===
+
+SECTION A — GENERAL INFORMATION:
+- Insured Name: ${sectionA.insuredName}
+- Address: ${sectionA.address}
+- Contact Person: ${sectionA.contactPerson} (${sectionA.contactPhone})
+- Date of Survey: ${sectionA.dateOfSurvey}
+- Surveyor: ${sectionA.surveyorName}
+- Occupancy: ${sectionA.occupancy} (${sectionA.occupancyDetails})
+- Building Age: ${sectionA.buildingAge} years
+- Total Area: ${sectionA.totalArea} sq m
+- Floors: ${sectionA.numberOfFloors} (Basements: ${sectionA.numberOfBasements})
+- Surrounding Exposures: ${sectionA.surroundingExposures}
+
+SECTION B — CONSTRUCTION DETAILS:
+- Structural Frame: ${sectionB.structuralFrame}
+- External Walls: ${sectionB.externalWalls}
+- Roof Structure: ${sectionB.roofStructure}
+- Roof Covering: ${sectionB.roofCovering}
+- Floor Type: ${sectionB.floorType}
+- Ceiling Type: ${sectionB.ceilingType}
+- Insulation Type: ${sectionB.insulationType}
+- Mezzanine Floors: ${sectionB.mezzanineFloors}
+- Building Condition: ${sectionB.buildingCondition}
+- Structural Concerns: ${sectionB.structuralConcerns}
+
+SECTION C — FIRE PROTECTION:
+- Fire Detection System: ${sectionC.fireDetectionSystem} (${sectionC.detectionType})
+- Sprinkler System: ${sectionC.sprinklerSystem} (${sectionC.sprinklerType}, Coverage: ${sectionC.sprinklerCoverage})
+- Fire Extinguishers: ${sectionC.fireExtinguishers} (${sectionC.extinguisherTypes})
+- Fire Hose Reels: ${sectionC.fireHoseReels}
+- External Hydrants: ${sectionC.externalHydrants}
+- Fire Alarm Panel: ${sectionC.fireAlarmPanel}
+- Emergency Exits: ${sectionC.emergencyExits}
+- Nearest Fire Brigade: ${sectionC.fireBrigade}
+- Last Fire Drill: ${sectionC.lastFireDrillDate}
+- Hot Work Procedures: ${sectionC.hotWorkProcedures}
+
+SECTION D — EHS / HAZARD INFORMATION:
+- Hazardous Materials Stored: ${sectionD.hazardousStorage} (${sectionD.hazardousMaterials})
+- Storage Arrangement: ${sectionD.storageArrangement}
+- Electrical Installation: ${sectionD.electricalInstallation}
+- Last Electrical Maintenance: ${sectionD.electricalMaintDate}
+- Lightning Protection: ${sectionD.lightningProtection}
+- Emergency Lighting: ${sectionD.emergencyLighting}
+- Smoking Policy: ${sectionD.smokingPolicy}
+- Flammable Liquid Storage: ${sectionD.flammableLiquidStorage}
+- LPG Storage: ${sectionD.lpgStorage}
+- Dust Hazard: ${sectionD.dustHazard}
+- Process Hazards: ${sectionD.processHazards}
+
+SECTION E — HOUSEKEEPING & MAINTENANCE:
+- General Housekeeping: ${sectionE.generalHousekeeping}
+- Waste Management: ${sectionE.wasteManagement}
+- Maintenance Program: ${sectionE.maintenanceProgram}
+- Roof Maintenance: ${sectionE.roofMaintenance}
+- Electrical Maintenance: ${sectionE.electricalMaintenance}
+- Fire Safety Maintenance: ${sectionE.fireSafetyMaintenance}
+- Security Arrangements: ${sectionE.securityArrangements}
+- Perimeter Fencing: ${sectionE.perimeterFencing}
+- Access Control: ${sectionE.accessControl}
+- Flood Exposure: ${sectionE.floodExposure}
+- Natural Cat Exposure: ${sectionE.naturalCatExposure}
+- Business Continuity Plan: ${sectionE.businessContinuityPlan}
+
+=== UPLOADED PHOTOS ===
+${photoDescriptions.length > 0 ? photoDescriptions.join("\n") : "No photos provided."}
+
+=== YOUR TASK ===
+
+Analyze ALL checklist data AND photos to produce a professional RI Report. Cross-reference checklist answers with visual evidence from photos. Where checklist says one thing but photos show another, note the discrepancy.
+
+Score each section on a 1-100 scale:
+- 1-25: Low Risk (well-managed, compliant)
+- 26-50: Moderate Risk (minor issues, mostly compliant)
+- 51-75: High Risk (significant concerns, multiple deficiencies)
+- 76-100: Critical Risk (severe hazards, immediate action needed)
+
+You MUST respond with ONLY valid JSON (no markdown, no code blocks, just raw JSON) in this exact format:
+{
+  "executiveSummary": "3-4 sentence professional executive summary covering the overall risk profile, key concerns, and recommendation for underwriters",
+  "overallRiskScore": <1-100>,
+  "overallRiskGrade": "Low|Moderate|High|Critical",
+  "sections": [
+    {
+      "sectionId": "A",
+      "title": "General Information & Property Overview",
+      "riskScore": <1-100>,
+      "riskGrade": "Low|Moderate|High|Critical",
+      "narrative": "2-3 paragraph detailed narrative analysis of this section. Reference specific checklist data and photo observations. Write in a professional risk engineering tone.",
+      "findings": [
+        {
+          "title": "Finding title",
+          "severity": "Critical|High|Medium|Low",
+          "description": "Detailed description of the issue",
+          "recommendation": "Specific actionable recommendation",
+          "estimatedCost": "Low|Medium|High",
+          "timeframe": "Immediate|30 days|90 days|12 months"
+        }
+      ],
+      "positives": ["Positive observation 1", "Positive observation 2"]
+    },
+    {
+      "sectionId": "B",
+      "title": "Construction Details",
+      "riskScore": <1-100>,
+      "riskGrade": "...",
+      "narrative": "...",
+      "findings": [...],
+      "positives": [...]
+    },
+    {
+      "sectionId": "C",
+      "title": "Fire Protection",
+      "riskScore": <1-100>,
+      "riskGrade": "...",
+      "narrative": "...",
+      "findings": [...],
+      "positives": [...]
+    },
+    {
+      "sectionId": "D",
+      "title": "EHS / Hazard Information",
+      "riskScore": <1-100>,
+      "riskGrade": "...",
+      "narrative": "...",
+      "findings": [...],
+      "positives": [...]
+    },
+    {
+      "sectionId": "E",
+      "title": "Housekeeping & Maintenance",
+      "riskScore": <1-100>,
+      "riskGrade": "...",
+      "narrative": "...",
+      "findings": [...],
+      "positives": [...]
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": 1,
+      "title": "Most urgent recommendation title",
+      "description": "Detailed description",
+      "section": "C",
+      "timeframe": "Immediate|30 days|90 days|12 months"
+    },
+    {
+      "priority": 2,
+      "title": "...",
+      "description": "...",
+      "section": "...",
+      "timeframe": "..."
+    }
+  ],
+  "complianceItems": [
+    {
+      "category": "Fire Protection",
+      "item": "Fire Detection System",
+      "status": "Compliant|Non-Compliant|Partially Compliant|N/A",
+      "remarks": "Brief remark about compliance status"
+    },
+    {
+      "category": "Fire Protection",
+      "item": "Sprinkler System",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Fire Protection",
+      "item": "Fire Extinguishers",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Fire Protection",
+      "item": "Emergency Exits",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Electrical",
+      "item": "Electrical Installation",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Electrical",
+      "item": "Lightning Protection",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Electrical",
+      "item": "Emergency Lighting",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Safety",
+      "item": "Hazardous Material Storage",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Safety",
+      "item": "Hot Work Procedures",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Security",
+      "item": "Access Control",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Security",
+      "item": "Perimeter Security",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Management",
+      "item": "Business Continuity Plan",
+      "status": "...",
+      "remarks": "..."
+    },
+    {
+      "category": "Management",
+      "item": "Maintenance Program",
+      "status": "...",
+      "remarks": "..."
+    }
+  ]
+}
+
+IMPORTANT GUIDELINES:
+- Be thorough: every section must have at least 2 findings and 1 positive
+- Be professional: write in formal risk engineering language
+- Be specific: reference actual checklist values and photo observations
+- Provide at least 5 prioritized recommendations
+- Provide at least 13 compliance items covering all key areas
+- Include at least 5 recommendations sorted by priority
+- All scores must be integers between 1 and 100`;
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 8192,
+    messages: [
+      {
+        role: "user",
+        content: [...imageContent, { type: "text", text: prompt }],
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("No text response from Claude");
+  }
+
+  // Strip markdown code blocks if present
+  let jsonText = textBlock.text.trim();
+  if (jsonText.startsWith("```")) {
+    jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+
+  const parsed: RIReportAnalysis = JSON.parse(jsonText);
+  return parsed;
 }

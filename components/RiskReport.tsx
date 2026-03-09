@@ -1,12 +1,19 @@
 "use client";
 
-import { Download, ArrowLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  Download,
+  ArrowLeft,
+  AlertTriangle,
+  CheckCircle2,
+  Printer,
+  Share2,
+} from "lucide-react";
 import type { RiskAnalysis, SiteDetails } from "@/lib/risk-scoring";
 import RiskScoreGauge from "./RiskScoreGauge";
 import RiskCategoryCard from "./RiskCategoryCard";
 import ReportHeader from "./ReportHeader";
-import { exportReportToPDF } from "@/lib/pdf-export";
-import { useState } from "react";
+import { exportReportToPDF, printReport, shareReport } from "@/lib/pdf-export";
+import { useState, useEffect } from "react";
 
 interface RiskReportProps {
   analysis: RiskAnalysis;
@@ -20,19 +27,41 @@ export default function RiskReport({
   onBack,
 }: RiskReportProps) {
   const [exporting, setExporting] = useState(false);
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => {
+    setCanShare(!!navigator.share);
+  }, []);
 
   const handleExport = async () => {
     setExporting(true);
+    setPdfFailed(false);
     try {
-      await exportReportToPDF(
+      const success = await exportReportToPDF(
         "risk-report",
-        `RiskLens-Report-${siteDetails.address || "survey"}-${new Date().toISOString().split("T")[0]}.pdf`
+        `RiskLens-Report-${(siteDetails.address || "survey").replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`
       );
+      if (!success) {
+        setPdfFailed(true);
+      }
     } catch (err) {
       console.error("PDF export failed:", err);
+      setPdfFailed(true);
     } finally {
       setExporting(false);
     }
+  };
+
+  const handlePrint = () => {
+    printReport();
+  };
+
+  const handleShare = async () => {
+    await shareReport(
+      `RiskLens Report - ${siteDetails.address}`,
+      `Property risk assessment for ${siteDetails.address}. Overall risk score: ${analysis.overallScore}/100 (${analysis.riskLevel}).`
+    );
   };
 
   const date = new Date().toLocaleDateString("en-US", {
@@ -50,20 +79,53 @@ export default function RiskReport({
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-[var(--muted)] transition-all hover:bg-gray-100 hover:text-[var(--foreground)]"
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--muted)] transition-all hover:bg-gray-100 hover:text-[var(--foreground)]"
           >
             <ArrowLeft className="h-4 w-4" />
-            New Survey
+            <span className="hidden sm:inline">New Survey</span>
           </button>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-[var(--primary-light)] disabled:opacity-50"
-          >
-            <Download className="h-4 w-4" />
-            {exporting ? "Generating PDF..." : "Download PDF"}
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Share button (mobile) */}
+            {canShare && (
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition-all hover:bg-gray-50"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            )}
+
+            {/* Print button */}
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition-all hover:bg-gray-50"
+            >
+              <Printer className="h-4 w-4" />
+              <span className="hidden sm:inline">Print</span>
+            </button>
+
+            {/* PDF Download button */}
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-[var(--primary-light)] disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Generating..." : "PDF"}
+            </button>
+          </div>
         </div>
+
+        {/* PDF failed fallback message */}
+        {pdfFailed && (
+          <div className="mx-auto max-w-5xl px-4 pb-3">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800">
+              PDF download not supported on this browser. Use the <strong>Print</strong> button and select &quot;Save as PDF&quot; instead.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Report content */}
