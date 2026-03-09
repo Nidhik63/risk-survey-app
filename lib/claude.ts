@@ -203,253 +203,47 @@ export async function analyzeRiskImagesV2(
     );
   });
 
-  const prompt = `You are a certified property risk engineer conducting a professional Risk Inspection (RI) survey for insurance underwriting purposes. Analyze the provided site photos AND the surveyor's checklist data to produce a comprehensive RI Report.
+  const prompt = `You are a certified property risk engineer. Analyze the site photos AND checklist data to produce an RI Report as JSON.
 
-=== SURVEYOR'S CHECKLIST DATA ===
+=== CHECKLIST DATA ===
+A) General: Insured=${sectionA.insuredName}, Addr=${sectionA.address}, Contact=${sectionA.contactPerson}(${sectionA.contactPhone}), Date=${sectionA.dateOfSurvey}, Surveyor=${sectionA.surveyorName}, Occupancy=${sectionA.occupancy === "Other" ? sectionA.occupancyOther : sectionA.occupancy}(${sectionA.occupancyDetails}), Age=${sectionA.buildingAge}yr, Area=${sectionA.totalArea}sqm, Floors=${sectionA.numberOfFloors}(B:${sectionA.numberOfBasements}), Exposures=${sectionA.surroundingExposures}
+B) Construction: Frame=${sectionB.structuralFrame}, Walls=${sectionB.externalWalls}, Roof=${sectionB.roofStructure}/${sectionB.roofCovering}, Floor=${sectionB.floorType}, Ceiling=${sectionB.ceilingType}, Insulation=${sectionB.insulationType}, Mezzanine=${sectionB.mezzanineFloors}, Condition=${sectionB.buildingCondition}, Concerns=${sectionB.structuralConcerns}
+C) Fire: Detection=${sectionC.fireDetectionSystem}(${sectionC.detectionType}), Sprinklers=${sectionC.sprinklerSystem}(${sectionC.sprinklerType},${sectionC.sprinklerCoverage}), Extinguishers=${sectionC.fireExtinguishers}(${sectionC.extinguisherTypes}), HoseReels=${sectionC.fireHoseReels}, Hydrants=${sectionC.externalHydrants}, AlarmPanel=${sectionC.fireAlarmPanel}, Exits=${sectionC.emergencyExits}, Brigade=${sectionC.fireBrigade}, LastDrill=${sectionC.lastFireDrillDate}, HotWork=${sectionC.hotWorkProcedures}
+D) EHS: HazMat=${sectionD.hazardousStorage}(${sectionD.hazardousMaterials}), Storage=${sectionD.storageArrangement}, Electrical=${sectionD.electricalInstallation}(maint:${sectionD.electricalMaintDate}), Lightning=${sectionD.lightningProtection}, EmergLight=${sectionD.emergencyLighting}, Smoking=${sectionD.smokingPolicy}, FlammLiquid=${sectionD.flammableLiquidStorage}, LPG=${sectionD.lpgStorage}, Dust=${sectionD.dustHazard}, Process=${sectionD.processHazards}
+E) Housekeeping: HK=${sectionE.generalHousekeeping}, Waste=${sectionE.wasteManagement}, Maint=${sectionE.maintenanceProgram}, RoofMaint=${sectionE.roofMaintenance}, ElecMaint=${sectionE.electricalMaintenance}, FireMaint=${sectionE.fireSafetyMaintenance}, Security=${sectionE.securityArrangements}, Fence=${sectionE.perimeterFencing}, Access=${sectionE.accessControl}, Flood=${sectionE.floodExposure}, NatCat=${sectionE.naturalCatExposure}, BCP=${sectionE.businessContinuityPlan}
 
-SECTION A — GENERAL INFORMATION:
-- Insured Name: ${sectionA.insuredName}
-- Address: ${sectionA.address}
-- Contact Person: ${sectionA.contactPerson} (${sectionA.contactPhone})
-- Date of Survey: ${sectionA.dateOfSurvey}
-- Surveyor: ${sectionA.surveyorName}
-- Occupancy: ${sectionA.occupancy === "Other" ? sectionA.occupancyOther : sectionA.occupancy} (${sectionA.occupancyDetails})
-- Building Age: ${sectionA.buildingAge} years
-- Total Area: ${sectionA.totalArea} sq m
-- Floors: ${sectionA.numberOfFloors} (Basements: ${sectionA.numberOfBasements})
-- Surrounding Exposures: ${sectionA.surroundingExposures}
+=== PHOTOS ===
+${photoDescriptions.length > 0 ? photoDescriptions.join("; ") : "None"}
 
-SECTION B — CONSTRUCTION DETAILS:
-- Structural Frame: ${sectionB.structuralFrame}
-- External Walls: ${sectionB.externalWalls}
-- Roof Structure: ${sectionB.roofStructure}
-- Roof Covering: ${sectionB.roofCovering}
-- Floor Type: ${sectionB.floorType}
-- Ceiling Type: ${sectionB.ceilingType}
-- Insulation Type: ${sectionB.insulationType}
-- Mezzanine Floors: ${sectionB.mezzanineFloors}
-- Building Condition: ${sectionB.buildingCondition}
-- Structural Concerns: ${sectionB.structuralConcerns}
+=== OUTPUT FORMAT ===
+Respond ONLY with valid JSON (no markdown). Keep narratives to ONE concise paragraph each. Keep finding descriptions to 1-2 sentences. Keep recommendation descriptions to 1 sentence. Keep compliance remarks to a few words.
 
-SECTION C — FIRE PROTECTION:
-- Fire Detection System: ${sectionC.fireDetectionSystem} (${sectionC.detectionType})
-- Sprinkler System: ${sectionC.sprinklerSystem} (${sectionC.sprinklerType}, Coverage: ${sectionC.sprinklerCoverage})
-- Fire Extinguishers: ${sectionC.fireExtinguishers} (${sectionC.extinguisherTypes})
-- Fire Hose Reels: ${sectionC.fireHoseReels}
-- External Hydrants: ${sectionC.externalHydrants}
-- Fire Alarm Panel: ${sectionC.fireAlarmPanel}
-- Emergency Exits: ${sectionC.emergencyExits}
-- Nearest Fire Brigade: ${sectionC.fireBrigade}
-- Last Fire Drill: ${sectionC.lastFireDrillDate}
-- Hot Work Procedures: ${sectionC.hotWorkProcedures}
+Scoring: 1-25=Low, 26-50=Moderate, 51-75=High, 76-100=Critical.
 
-SECTION D — EHS / HAZARD INFORMATION:
-- Hazardous Materials Stored: ${sectionD.hazardousStorage} (${sectionD.hazardousMaterials})
-- Storage Arrangement: ${sectionD.storageArrangement}
-- Electrical Installation: ${sectionD.electricalInstallation}
-- Last Electrical Maintenance: ${sectionD.electricalMaintDate}
-- Lightning Protection: ${sectionD.lightningProtection}
-- Emergency Lighting: ${sectionD.emergencyLighting}
-- Smoking Policy: ${sectionD.smokingPolicy}
-- Flammable Liquid Storage: ${sectionD.flammableLiquidStorage}
-- LPG Storage: ${sectionD.lpgStorage}
-- Dust Hazard: ${sectionD.dustHazard}
-- Process Hazards: ${sectionD.processHazards}
-
-SECTION E — HOUSEKEEPING & MAINTENANCE:
-- General Housekeeping: ${sectionE.generalHousekeeping}
-- Waste Management: ${sectionE.wasteManagement}
-- Maintenance Program: ${sectionE.maintenanceProgram}
-- Roof Maintenance: ${sectionE.roofMaintenance}
-- Electrical Maintenance: ${sectionE.electricalMaintenance}
-- Fire Safety Maintenance: ${sectionE.fireSafetyMaintenance}
-- Security Arrangements: ${sectionE.securityArrangements}
-- Perimeter Fencing: ${sectionE.perimeterFencing}
-- Access Control: ${sectionE.accessControl}
-- Flood Exposure: ${sectionE.floodExposure}
-- Natural Cat Exposure: ${sectionE.naturalCatExposure}
-- Business Continuity Plan: ${sectionE.businessContinuityPlan}
-
-=== UPLOADED PHOTOS ===
-${photoDescriptions.length > 0 ? photoDescriptions.join("\n") : "No photos provided."}
-
-=== YOUR TASK ===
-
-Analyze ALL checklist data AND photos to produce a professional RI Report. Cross-reference checklist answers with visual evidence from photos. Where checklist says one thing but photos show another, note the discrepancy.
-
-Score each section on a 1-100 scale:
-- 1-25: Low Risk (well-managed, compliant)
-- 26-50: Moderate Risk (minor issues, mostly compliant)
-- 51-75: High Risk (significant concerns, multiple deficiencies)
-- 76-100: Critical Risk (severe hazards, immediate action needed)
-
-You MUST respond with ONLY valid JSON (no markdown, no code blocks, just raw JSON) in this exact format:
 {
-  "executiveSummary": "3-4 sentence professional executive summary covering the overall risk profile, key concerns, and recommendation for underwriters",
+  "executiveSummary": "2-3 sentence summary for underwriters",
   "overallRiskScore": <1-100>,
   "overallRiskGrade": "Low|Moderate|High|Critical",
   "sections": [
     {
-      "sectionId": "A",
-      "title": "General Information & Property Overview",
+      "sectionId": "A|B|C|D|E",
+      "title": "Section title",
       "riskScore": <1-100>,
       "riskGrade": "Low|Moderate|High|Critical",
-      "narrative": "2-3 paragraph detailed narrative analysis of this section. Reference specific checklist data and photo observations. Write in a professional risk engineering tone.",
-      "findings": [
-        {
-          "title": "Finding title",
-          "severity": "Critical|High|Medium|Low",
-          "description": "Detailed description of the issue",
-          "recommendation": "Specific actionable recommendation",
-          "estimatedCost": "Low|Medium|High",
-          "timeframe": "Immediate|30 days|90 days|12 months"
-        }
-      ],
-      "positives": ["Positive observation 1", "Positive observation 2"]
-    },
-    {
-      "sectionId": "B",
-      "title": "Construction Details",
-      "riskScore": <1-100>,
-      "riskGrade": "...",
-      "narrative": "...",
-      "findings": [...],
-      "positives": [...]
-    },
-    {
-      "sectionId": "C",
-      "title": "Fire Protection",
-      "riskScore": <1-100>,
-      "riskGrade": "...",
-      "narrative": "...",
-      "findings": [...],
-      "positives": [...]
-    },
-    {
-      "sectionId": "D",
-      "title": "EHS / Hazard Information",
-      "riskScore": <1-100>,
-      "riskGrade": "...",
-      "narrative": "...",
-      "findings": [...],
-      "positives": [...]
-    },
-    {
-      "sectionId": "E",
-      "title": "Housekeeping & Maintenance",
-      "riskScore": <1-100>,
-      "riskGrade": "...",
-      "narrative": "...",
-      "findings": [...],
-      "positives": [...]
+      "narrative": "One concise paragraph referencing checklist data and photos.",
+      "findings": [{"title":"...","severity":"Critical|High|Medium|Low","description":"1-2 sentences","recommendation":"actionable fix","estimatedCost":"Low|Medium|High","timeframe":"Immediate|30 days|90 days|12 months"}],
+      "positives": ["positive 1"]
     }
   ],
-  "recommendations": [
-    {
-      "priority": 1,
-      "title": "Most urgent recommendation title",
-      "description": "Detailed description",
-      "section": "C",
-      "timeframe": "Immediate|30 days|90 days|12 months"
-    },
-    {
-      "priority": 2,
-      "title": "...",
-      "description": "...",
-      "section": "...",
-      "timeframe": "..."
-    }
-  ],
-  "complianceItems": [
-    {
-      "category": "Fire Protection",
-      "item": "Fire Detection System",
-      "status": "Compliant|Non-Compliant|Partially Compliant|N/A",
-      "remarks": "Brief remark about compliance status"
-    },
-    {
-      "category": "Fire Protection",
-      "item": "Sprinkler System",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Fire Protection",
-      "item": "Fire Extinguishers",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Fire Protection",
-      "item": "Emergency Exits",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Electrical",
-      "item": "Electrical Installation",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Electrical",
-      "item": "Lightning Protection",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Electrical",
-      "item": "Emergency Lighting",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Safety",
-      "item": "Hazardous Material Storage",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Safety",
-      "item": "Hot Work Procedures",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Security",
-      "item": "Access Control",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Security",
-      "item": "Perimeter Security",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Management",
-      "item": "Business Continuity Plan",
-      "status": "...",
-      "remarks": "..."
-    },
-    {
-      "category": "Management",
-      "item": "Maintenance Program",
-      "status": "...",
-      "remarks": "..."
-    }
-  ]
+  "recommendations": [{"priority":1,"title":"...","description":"1 sentence","section":"A|B|C|D|E","timeframe":"Immediate|30 days|90 days|12 months"}],
+  "complianceItems": [{"category":"Fire Protection|Electrical|Safety|Security|Management","item":"item name","status":"Compliant|Non-Compliant|Partially Compliant|N/A","remarks":"few words"}]
 }
 
-IMPORTANT GUIDELINES:
-- Be thorough: every section must have at least 2 findings and 1 positive
-- Be professional: write in formal risk engineering language
-- Be specific: reference actual checklist values and photo observations
-- Provide at least 5 prioritized recommendations
-- Provide at least 13 compliance items covering all key areas
-- Include at least 5 recommendations sorted by priority
-- All scores must be integers between 1 and 100`;
+REQUIREMENTS:
+- 5 sections (A through E), each with 1-2 findings and 1 positive
+- 5 recommendations sorted by priority
+- 8 compliance items covering: Fire Detection, Sprinklers, Extinguishers, Exits, Electrical, HazMat, Access Control, BCP
+- Be concise but professional. Reference actual checklist values and photo observations.`;
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -473,8 +267,65 @@ IMPORTANT GUIDELINES:
     jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
   }
 
+  // If response was truncated (hit max_tokens), try to repair the JSON
+  if (response.stop_reason === "max_tokens") {
+    jsonText = repairTruncatedJson(jsonText);
+  }
+
   const parsed: RIReportAnalysis = JSON.parse(jsonText);
   return parsed;
+}
+
+// Attempt to close truncated JSON by balancing brackets
+function repairTruncatedJson(text: string): string {
+  // Find the last complete value (ends with ", or number, or true/false/null, or ] or })
+  // Then close all open brackets/braces
+  let trimmed = text.trimEnd();
+
+  // Remove trailing comma if present
+  if (trimmed.endsWith(",")) {
+    trimmed = trimmed.slice(0, -1);
+  }
+
+  // Remove incomplete string (no closing quote)
+  const lastQuote = trimmed.lastIndexOf('"');
+  if (lastQuote > 0) {
+    // Check if the string before lastQuote has an unmatched opening quote
+    const afterLast = trimmed.slice(lastQuote + 1).trim();
+    // If after the last quote we have a dangling colon or nothing useful,
+    // the value was likely being written — back up to the last complete key-value
+    if (afterLast === ":" || afterLast === "") {
+      // Find the previous complete line
+      const lastNewline = trimmed.lastIndexOf("\n", lastQuote);
+      if (lastNewline > 0) {
+        trimmed = trimmed.slice(0, lastNewline).trimEnd();
+        if (trimmed.endsWith(",")) trimmed = trimmed.slice(0, -1);
+      }
+    }
+  }
+
+  // Count open vs close brackets/braces
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escape = false;
+
+  for (const ch of trimmed) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") openBraces++;
+    if (ch === "}") openBraces--;
+    if (ch === "[") openBrackets++;
+    if (ch === "]") openBrackets--;
+  }
+
+  // Close all open brackets and braces
+  for (let i = 0; i < openBrackets; i++) trimmed += "]";
+  for (let i = 0; i < openBraces; i++) trimmed += "}";
+
+  return trimmed;
 }
 
 // ============================================================
