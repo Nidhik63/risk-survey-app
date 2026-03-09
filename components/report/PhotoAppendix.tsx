@@ -82,15 +82,16 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
               key={index}
               className="group relative overflow-hidden rounded-2xl bg-[#0a0a0a] shadow-lg border border-white/[0.06] transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]"
             >
-              {/* Photo */}
+              {/* Photo — using padding-bottom trick for html2canvas compatibility */}
               <div
-                className="relative aspect-[4/3] cursor-pointer"
+                className="relative overflow-hidden cursor-pointer"
+                style={{ paddingBottom: "75%" }}
                 onClick={() => setLightboxIdx(index)}
               >
                 <img
                   src={photo.dataUrl}
                   alt={photo.caption || `Photo ${index + 1}`}
-                  className="h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
 
                 {/* Gradient overlay at bottom */}

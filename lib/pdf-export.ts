@@ -9,12 +9,27 @@ export async function exportReportToPDF(
     const element = document.getElementById(elementId);
     if (!element) throw new Error("Report element not found");
 
+    // Wait for all images to fully load before capture
+    const images = element.querySelectorAll("img");
+    await Promise.all(
+      Array.from(images).map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete && img.naturalHeight > 0) return resolve();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          })
+      )
+    );
+
     const canvas = await html2canvas(element, {
       scale: 1.5,
       useCORS: true,
+      allowTaint: true,
       logging: false,
       backgroundColor: "#ffffff",
       windowWidth: 1024,
+      imageTimeout: 30000,
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.85);
