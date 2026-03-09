@@ -32,6 +32,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   const [autoFillSummary, setAutoFillSummary] = useState("");
   const [autoFillError, setAutoFillError] = useState("");
   const [autoFilledFields, setAutoFilledFields] = useState<number>(0);
+  const [autoFillProgress, setAutoFillProgress] = useState("");
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -71,52 +72,91 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
     }
   }, [data, loaded]);
 
-  // Auto-fill from photos
+  // Auto-fill from photos (processes in batches of 15)
   const handleAutoFill = async () => {
     if (data.photos.length === 0) return;
 
     setAutoFilling(true);
     setAutoFillError("");
+    setAutoFillProgress("");
 
     try {
-      // Limit photos sent to API (Vercel payload limit) — keep all locally
-      const MAX_AUTOFILL_PHOTOS = 15;
-      const photosForApi = data.photos.length > MAX_AUTOFILL_PHOTOS
-        ? data.photos.slice(0, MAX_AUTOFILL_PHOTOS)
-        : data.photos;
+      const BATCH_SIZE = 15;
+      const totalPhotos = data.photos.length;
+      const totalBatches = Math.ceil(totalPhotos / BATCH_SIZE);
 
-      const response = await fetch("/api/autofill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photos: photosForApi }),
-      });
+      // Collect results from all batches
+      const allPhotoCategories: { section: string; caption: string }[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let mergedSections: Record<string, any> = {
+        sectionA: {}, sectionB: {}, sectionC: {}, sectionD: {}, sectionE: {},
+      };
+      let lastSummary = "";
 
-      if (!response.ok) {
-        let errMsg = "Auto-fill failed";
-        try {
-          const errData = await response.json();
-          errMsg = errData.error || errMsg;
-        } catch {
-          errMsg = `Server error (${response.status}). Try with fewer photos.`;
+      for (let batch = 0; batch < totalBatches; batch++) {
+        const start = batch * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, totalPhotos);
+        const batchPhotos = data.photos.slice(start, end);
+
+        setAutoFillProgress(
+          totalBatches > 1
+            ? `Analyzing batch ${batch + 1} of ${totalBatches} (photos ${start + 1}–${end})...`
+            : `Analyzing ${totalPhotos} photo${totalPhotos > 1 ? "s" : ""}...`
+        );
+
+        const response = await fetch("/api/autofill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ photos: batchPhotos }),
+        });
+
+        if (!response.ok) {
+          let errMsg = `Batch ${batch + 1} failed`;
+          try {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          } catch {
+            errMsg = `Server error (${response.status}) on batch ${batch + 1}.`;
+          }
+          throw new Error(errMsg);
         }
-        throw new Error(errMsg);
-      }
 
-      const result: AutoFillResult = await response.json();
+        const result: AutoFillResult = await response.json();
 
-      // Count non-empty fields from Claude's response BEFORE merging
-      let fieldCount = 0;
-      const sections = [result.sectionA, result.sectionB, result.sectionC, result.sectionD, result.sectionE];
-      for (const section of sections) {
-        if (section) {
-          for (const value of Object.values(section)) {
-            if (value && typeof value === "string" && value.trim()) fieldCount++;
+        // Collect photo categories from this batch
+        if (result.photoCategories) {
+          allPhotoCategories.push(...result.photoCategories);
+        } else {
+          // Fill with defaults if AI didn't return categories
+          for (let i = 0; i < batchPhotos.length; i++) {
+            allPhotoCategories.push({ section: "general", caption: "" });
           }
         }
+
+        // Merge section fields: first non-empty value wins
+        const sectionKeys = ["sectionA", "sectionB", "sectionC", "sectionD", "sectionE"] as const;
+        for (const key of sectionKeys) {
+          const incoming = result[key];
+          if (!incoming) continue;
+          for (const [field, value] of Object.entries(incoming)) {
+            if (value && typeof value === "string" && value.trim() && !mergedSections[key][field]) {
+              mergedSections[key][field] = value;
+            }
+          }
+        }
+
+        if (result.summary) lastSummary = result.summary;
       }
 
-      // Merge auto-filled data (only fill empty fields, don't overwrite user data)
-      // Also apply AI-generated photo categories and captions
+      // Count total non-empty fields across all batches
+      let fieldCount = 0;
+      for (const section of Object.values(mergedSections)) {
+        for (const value of Object.values(section as Record<string, string>)) {
+          if (value && typeof value === "string" && value.trim()) fieldCount++;
+        }
+      }
+
+      // Apply all merged data + photo categories to state
       setData((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mergeFields = (existing: any, incoming: any) => {
@@ -130,43 +170,35 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
           return out;
         };
 
-        // Apply AI photo categories (section + caption) to each photo
-        // Only the first MAX_AUTOFILL_PHOTOS were sent, so only those get categories
-        let updatedPhotos = prev.photos;
-        if (result.photoCategories && result.photoCategories.length > 0) {
-          updatedPhotos = prev.photos.map((photo, idx) => {
-            const cat = idx < result.photoCategories.length ? result.photoCategories[idx] : null;
-            if (!cat) return photo;
-            return {
-              ...photo,
-              // Only override section if user hasn't manually changed it from "general"
-              section: photo.section === "general" && cat.section ? cat.section : photo.section,
-              // Only set caption if user hasn't typed one
-              caption: !photo.caption.trim() && cat.caption ? cat.caption : photo.caption,
-            };
-          });
-        }
+        // Apply AI photo categories to ALL photos
+        const updatedPhotos = prev.photos.map((photo, idx) => {
+          const cat = idx < allPhotoCategories.length ? allPhotoCategories[idx] : null;
+          if (!cat) return photo;
+          return {
+            ...photo,
+            section: photo.section === "general" && cat.section ? (cat.section as typeof photo.section) : photo.section,
+            caption: !photo.caption.trim() && cat.caption ? cat.caption : photo.caption,
+          };
+        });
 
         return {
           ...prev,
           photos: updatedPhotos,
-          sectionA: mergeFields(prev.sectionA, result.sectionA),
-          sectionB: mergeFields(prev.sectionB, result.sectionB),
-          sectionC: mergeFields(prev.sectionC, result.sectionC),
-          sectionD: mergeFields(prev.sectionD, result.sectionD),
-          sectionE: mergeFields(prev.sectionE, result.sectionE),
+          sectionA: mergeFields(prev.sectionA, mergedSections.sectionA),
+          sectionB: mergeFields(prev.sectionB, mergedSections.sectionB),
+          sectionC: mergeFields(prev.sectionC, mergedSections.sectionC),
+          sectionD: mergeFields(prev.sectionD, mergedSections.sectionD),
+          sectionE: mergeFields(prev.sectionE, mergedSections.sectionE),
         };
       });
 
-      // Count how many photos got categorized
-      const photosTagged = result.photoCategories
-        ? result.photoCategories.filter((c) => c.section && c.section !== "general").length
-        : 0;
+      const photosTagged = allPhotoCategories.filter((c) => c.section && c.section !== "general").length;
 
       setAutoFilledFields(fieldCount);
       setAutoFilled(true);
+      setAutoFillProgress("");
       setAutoFillSummary(
-        (result.summary || "Form fields pre-filled from photos.") +
+        (lastSummary || "Form fields pre-filled from photos.") +
         (photosTagged > 0 ? ` ${photosTagged} photo${photosTagged > 1 ? "s" : ""} auto-categorized.` : "")
       );
     } catch (err) {
@@ -175,6 +207,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
       );
     } finally {
       setAutoFilling(false);
+      setAutoFillProgress("");
     }
   };
 
@@ -357,7 +390,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
                   AI is analyzing your photos...
                 </p>
                 <p className="text-xs text-blue-700">
-                  Extracting building details, categorizing photos, and pre-filling the checklist.
+                  {autoFillProgress || "Extracting building details, categorizing photos, and pre-filling the checklist."}
                 </p>
               </div>
             </div>
