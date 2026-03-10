@@ -8,17 +8,15 @@ interface GeocodingResult {
   displayName: string;
 }
 
-// Step 1: Geocode address via OpenStreetMap Nominatim (free, no API key)
-async function geocodeAddress(address: string): Promise<GeocodingResult | null> {
+// Geocode via OpenStreetMap Nominatim (free, no API key)
+async function geocodeQuery(query: string): Promise<GeocodingResult | null> {
   const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("q", address);
+  url.searchParams.set("q", query);
   url.searchParams.set("format", "json");
   url.searchParams.set("limit", "1");
 
   const response = await fetch(url.toString(), {
-    headers: {
-      "User-Agent": "RiskLens-SurveyApp/1.0",
-    },
+    headers: { "User-Agent": "RiskLens-SurveyApp/1.0" },
   });
 
   if (!response.ok) return null;
@@ -33,7 +31,41 @@ async function geocodeAddress(address: string): Promise<GeocodingResult | null> 
   };
 }
 
-// Step 2: Assess flood risk via Open-Meteo Flood API (free, no API key)
+// Smart geocoding: try full address first, then progressively simpler versions
+async function geocodeAddress(address: string): Promise<GeocodingResult | null> {
+  // Try 1: Full address as-is
+  const full = await geocodeQuery(address);
+  if (full) return full;
+
+  // Try 2: Remove plot/unit/lot numbers — strip "Plot No XXXX," or similar prefixes
+  const withoutPlot = address.replace(
+    /^(plot|unit|lot|bldg|building|flat|villa|shop|warehouse)\s*(no\.?|number|#)?\s*[\w-]+[,\s]+/i,
+    ""
+  ).trim();
+  if (withoutPlot !== address) {
+    const result = await geocodeQuery(withoutPlot);
+    if (result) return result;
+  }
+
+  // Try 3: Remove everything before the first comma (strip specific identifier)
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length >= 3) {
+    const simplified = parts.slice(1).join(", ");
+    const result = await geocodeQuery(simplified);
+    if (result) return result;
+  }
+
+  // Try 4: Just the last 2-3 parts (city + country)
+  if (parts.length >= 2) {
+    const cityCountry = parts.slice(-2).join(", ");
+    const result = await geocodeQuery(cityCountry);
+    if (result) return result;
+  }
+
+  return null;
+}
+
+// Assess flood risk via Open-Meteo Flood API (free, no API key)
 async function assessFloodRisk(
   lat: string,
   lng: string
@@ -57,7 +89,6 @@ async function assessFloodRisk(
     const data = await response.json();
     const discharges: number[] = data?.daily?.river_discharge || [];
 
-    // Filter out nulls
     const validDischarges = discharges.filter(
       (d) => d !== null && d !== undefined
     );
@@ -72,7 +103,6 @@ async function assessFloodRisk(
 
     const maxDischarge = Math.max(...validDischarges);
 
-    // Classify by peak river discharge (m³/s)
     if (maxDischarge < 100) {
       return {
         riskLevel: "Low",
@@ -105,8 +135,38 @@ async function assessFloodRisk(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { address } = body as { address: string };
+    const { address, lat, lng } = body as {
+      address?: string;
+      lat?: string;
+      lng?: string;
+    };
 
+    // Mode 1: Manual coordinates provided — just assess flood risk
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+        return NextResponse.json({
+          error: "Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180.",
+          lat: "",
+          lng: "",
+          floodRiskLevel: "",
+          floodRiskDetails: "",
+        });
+      }
+
+      const flood = await assessFloodRisk(lat, lng);
+
+      return NextResponse.json({
+        lat,
+        lng,
+        displayName: "Manual coordinates",
+        floodRiskLevel: flood.riskLevel,
+        floodRiskDetails: flood.details,
+      });
+    }
+
+    // Mode 2: Geocode from address
     if (!address || !address.trim()) {
       return NextResponse.json(
         { error: "Address is required" },
@@ -114,13 +174,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Geocode
+    // Smart geocoding with fallback
     const geoResult = await geocodeAddress(address.trim());
 
     if (!geoResult) {
       return NextResponse.json({
         error:
-          "Could not find coordinates for this address. Please check the address and try again.",
+          "Could not find coordinates for this address. You can enter coordinates manually below.",
         lat: "",
         lng: "",
         floodRiskLevel: "",
@@ -128,7 +188,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Step 2: Flood assessment
     const flood = await assessFloodRisk(geoResult.lat, geoResult.lng);
 
     return NextResponse.json({

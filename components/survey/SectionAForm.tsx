@@ -5,7 +5,7 @@ import type { SectionA } from "@/lib/survey-types";
 import TextField from "@/components/fields/TextField";
 import SelectField from "@/components/fields/SelectField";
 import TextAreaField from "@/components/fields/TextAreaField";
-import { Building2, MapPin, Loader2, Droplets } from "lucide-react";
+import { Building2, MapPin, Loader2, Droplets, PenLine } from "lucide-react";
 
 interface SectionAFormProps {
   data: SectionA;
@@ -36,7 +36,11 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
 
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
+  const [showManualCoords, setShowManualCoords] = useState(false);
+  const [manualLat, setManualLat] = useState("");
+  const [manualLng, setManualLng] = useState("");
 
+  // Auto-lookup from address
   const handleGeocode = async () => {
     if (!data.address.trim()) return;
     setGeocoding(true);
@@ -53,6 +57,43 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
 
       if (result.error && !result.lat) {
         setGeocodeError(result.error);
+        setShowManualCoords(true);
+        return;
+      }
+
+      setShowManualCoords(false);
+      onChange({
+        ...data,
+        latitude: result.lat || "",
+        longitude: result.lng || "",
+        floodRiskLevel: result.floodRiskLevel || "",
+        floodRiskDetails: result.floodRiskDetails || "",
+      });
+    } catch {
+      setGeocodeError("Failed to lookup coordinates. You can enter them manually.");
+      setShowManualCoords(true);
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  // Manual coordinates → flood risk lookup
+  const handleManualCoords = async () => {
+    if (!manualLat.trim() || !manualLng.trim()) return;
+    setGeocoding(true);
+    setGeocodeError("");
+
+    try {
+      const response = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: manualLat.trim(), lng: manualLng.trim() }),
+      });
+
+      const result = await response.json();
+
+      if (result.error && !result.lat) {
+        setGeocodeError(result.error);
         return;
       }
 
@@ -63,8 +104,9 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
         floodRiskLevel: result.floodRiskLevel || "",
         floodRiskDetails: result.floodRiskDetails || "",
       });
+      setShowManualCoords(false);
     } catch {
-      setGeocodeError("Failed to lookup coordinates. Please try again.");
+      setGeocodeError("Failed to assess flood risk. Please try again.");
     } finally {
       setGeocoding(false);
     }
@@ -142,11 +184,76 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
             </button>
           </div>
 
+          {/* Error message */}
           {geocodeError && (
             <p className="mt-1.5 text-xs text-amber-600">{geocodeError}</p>
           )}
 
-          {/* Coordinates + Flood Risk badges */}
+          {/* Manual coordinate entry — shown when auto-lookup fails or user clicks link */}
+          {!data.latitude && (
+            <div className="mt-2">
+              {!showManualCoords ? (
+                <button
+                  type="button"
+                  onClick={() => setShowManualCoords(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
+                  <PenLine className="h-3 w-3" />
+                  Enter coordinates manually
+                </button>
+              ) : (
+                <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <p className="text-xs font-bold text-indigo-700 mb-3">
+                    Enter GPS Coordinates
+                  </p>
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">
+                        Latitude
+                      </label>
+                      <input
+                        type="text"
+                        value={manualLat}
+                        onChange={(e) => setManualLat(e.target.value)}
+                        placeholder="e.g. 25.031417"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">
+                        Longitude
+                      </label>
+                      <input
+                        type="text"
+                        value={manualLng}
+                        onChange={(e) => setManualLng(e.target.value)}
+                        placeholder="e.g. 55.184110"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleManualCoords}
+                      disabled={geocoding || !manualLat.trim() || !manualLng.trim()}
+                      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    >
+                      {geocoding ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Droplets className="h-3.5 w-3.5" />
+                      )}
+                      {geocoding ? "Checking..." : "Get Flood Risk"}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] text-gray-400">
+                    Tip: You can get coordinates from Google Maps by right-clicking on the location
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Coordinates + Flood Risk badges — shown when we have coordinates */}
           {data.latitude && data.longitude && (
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2">
@@ -167,6 +274,26 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
                   </span>
                 </div>
               )}
+
+              {/* Reset button to re-enter coordinates */}
+              <button
+                type="button"
+                onClick={() => {
+                  onChange({
+                    ...data,
+                    latitude: "",
+                    longitude: "",
+                    floodRiskLevel: "",
+                    floodRiskDetails: "",
+                  });
+                  setShowManualCoords(false);
+                  setManualLat("");
+                  setManualLng("");
+                }}
+                className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors underline"
+              >
+                Reset
+              </button>
             </div>
           )}
 
