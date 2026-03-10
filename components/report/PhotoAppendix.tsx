@@ -6,12 +6,14 @@ import { SECTION_META } from "@/lib/survey-types";
 import {
   ImageIcon,
   AlertTriangle,
+  AlertOctagon,
+  Info,
   CheckCircle2,
   Shield,
   X,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
+  Camera,
 } from "lucide-react";
 
 interface PhotoAppendixProps {
@@ -25,12 +27,16 @@ function getSectionLabel(section: string) {
   return meta ? `${meta.id}: ${meta.title}` : section;
 }
 
-function getSeverityColor(severity: string) {
+function getSeverityStyle(severity: string) {
   switch (severity) {
-    case "Critical": return { bg: "bg-red-500", text: "text-red-100", border: "border-red-400" };
-    case "High": return { bg: "bg-orange-500", text: "text-orange-100", border: "border-orange-400" };
-    case "Medium": return { bg: "bg-amber-500", text: "text-amber-100", border: "border-amber-400" };
-    default: return { bg: "bg-blue-500", text: "text-blue-100", border: "border-blue-400" };
+    case "Critical":
+      return { bg: "#fef2f2", text: "#dc2626", border: "#fecaca", icon: AlertOctagon };
+    case "High":
+      return { bg: "#fff7ed", text: "#ea580c", border: "#fed7aa", icon: AlertTriangle };
+    case "Medium":
+      return { bg: "#fffbeb", text: "#d97706", border: "#fde68a", icon: Info };
+    default:
+      return { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe", icon: Info };
   }
 }
 
@@ -66,26 +72,29 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
           <h2 className="text-xl font-black text-[var(--foreground)] tracking-tight">
             Photo Evidence
           </h2>
-          <p className="text-xs text-[var(--muted)]">{photos.length} photos with AI risk analysis overlay</p>
+          <p className="text-xs text-[var(--muted)]">
+            {photos.length} photos with AI risk analysis
+          </p>
         </div>
       </div>
 
-      {/* Photo grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {/* Photo grid — one photo per row for maximum clarity */}
+      <div className="space-y-6">
         {photos.map((photo, index) => {
           const annotations = getPhotoAnnotations(photo);
           const risks = annotations?.findings || [];
           const positives = annotations?.positives || [];
+          const hasAnalysis = risks.length > 0 || positives.length > 0;
 
           return (
             <div
               key={index}
-              className="group relative overflow-hidden rounded-2xl bg-[#0a0a0a] shadow-lg border border-white/[0.06] transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]"
+              className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
             >
-              {/* Photo — using padding-bottom trick for html2canvas compatibility */}
+              {/* Clean photo — NO overlays, NO text on image */}
               <div
-                className="relative overflow-hidden cursor-pointer"
-                style={{ paddingBottom: "75%" }}
+                className="relative overflow-hidden cursor-pointer bg-gray-100"
+                style={{ paddingBottom: "56.25%" }}
                 onClick={() => setLightboxIdx(index)}
               >
                 <img
@@ -94,100 +103,117 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
                   className="absolute inset-0 h-full w-full object-cover"
                 />
 
-                {/* Gradient overlay at bottom */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                {/* Photo number badge */}
-                <div className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-xl bg-black/60 backdrop-blur-sm border border-white/10 text-xs font-bold text-white">
+                {/* Minimal photo number — small, top-left, semi-transparent */}
+                <div className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg bg-black/40 text-[11px] font-bold text-white">
                   {index + 1}
                 </div>
+              </div>
 
-                {/* Section badge */}
-                {photo.section !== "general" && (
-                  <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl bg-blue-500/90 backdrop-blur-sm px-3 py-1.5 border border-blue-400/30">
-                    <Sparkles className="h-3 w-3 text-blue-100" />
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+              {/* Info panel BELOW the photo */}
+              <div className="p-5 space-y-4">
+                {/* Caption + section tag row */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Camera className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Photo {index + 1} of {photos.length}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 leading-snug">
+                      {photo.caption || `Photo ${index + 1}`}
+                    </p>
+                  </div>
+
+                  {/* Section badge */}
+                  {photo.section !== "general" && (
+                    <span
+                      className="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider"
+                      style={{
+                        backgroundColor: "#eff6ff",
+                        color: "#2563eb",
+                        border: "1px solid #bfdbfe",
+                      }}
+                    >
                       Section {photo.section}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {/* Risk annotation chips overlaid on photo */}
-                {risks.length > 0 && (
-                  <div className="absolute left-3 bottom-14 right-3 flex flex-wrap gap-1.5">
-                    {risks.slice(0, 3).map((finding, fi) => {
-                      const colors = getSeverityColor(finding.severity);
+                {/* AI Analysis section — below caption */}
+                {hasAnalysis && (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5 text-gray-400" />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        AI Risk Analysis &middot; {getSectionLabel(photo.section)}
+                      </p>
+                    </div>
+
+                    {/* Risk findings */}
+                    {risks.map((finding, fi) => {
+                      const style = getSeverityStyle(finding.severity);
+                      const Icon = style.icon;
                       return (
                         <div
                           key={fi}
-                          className={`flex items-center gap-1 rounded-lg ${colors.bg}/90 backdrop-blur-sm px-2 py-1 border ${colors.border}/30`}
+                          className="rounded-lg p-3"
+                          style={{
+                            backgroundColor: style.bg,
+                            border: `1px solid ${style.border}`,
+                          }}
                         >
-                          <AlertTriangle className={`h-3 w-3 ${colors.text}`} />
-                          <span className={`text-[10px] font-bold ${colors.text} leading-tight max-w-[140px] truncate`}>
-                            {finding.title}
-                          </span>
+                          <div className="flex items-start gap-2.5">
+                            <Icon
+                              className="h-4 w-4 shrink-0 mt-0.5"
+                              style={{ color: style.text }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span
+                                  className="text-[10px] font-bold uppercase tracking-wider"
+                                  style={{ color: style.text }}
+                                >
+                                  {finding.severity}
+                                </span>
+                                <span
+                                  className="text-xs font-bold"
+                                  style={{ color: style.text }}
+                                >
+                                  {finding.title}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+                                {finding.description}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
-                  </div>
-                )}
 
-                {/* Positive annotation chips */}
-                {positives.length > 0 && risks.length === 0 && (
-                  <div className="absolute left-3 bottom-14 right-3 flex flex-wrap gap-1.5">
-                    {positives.slice(0, 2).map((pos, pi) => (
+                    {/* Positive observations */}
+                    {positives.map((pos, pi) => (
                       <div
                         key={pi}
-                        className="flex items-center gap-1 rounded-lg bg-emerald-500/90 backdrop-blur-sm px-2 py-1 border border-emerald-400/30"
+                        className="flex items-start gap-2.5 rounded-lg p-3"
+                        style={{
+                          backgroundColor: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                        }}
                       >
-                        <CheckCircle2 className="h-3 w-3 text-emerald-100" />
-                        <span className="text-[10px] font-bold text-emerald-100 leading-tight max-w-[160px] truncate">
+                        <CheckCircle2
+                          className="h-4 w-4 shrink-0 mt-0.5"
+                          style={{ color: "#16a34a" }}
+                        />
+                        <p className="text-xs text-emerald-800 leading-relaxed">
                           {pos}
-                        </span>
+                        </p>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* Caption bar */}
-                <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
-                  <p className="text-sm font-semibold text-white/90 leading-snug">
-                    {photo.caption || `Photo ${index + 1}`}
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-white/40 font-medium uppercase tracking-wider">
-                    {getSectionLabel(photo.section)}
-                  </p>
-                </div>
               </div>
-
-              {/* Findings detail panel below photo */}
-              {annotations && (risks.length > 0 || positives.length > 0) && (
-                <div className="border-t border-white/[0.06] bg-[#111] p-4 space-y-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Shield className="h-3.5 w-3.5 text-white/40" />
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                      AI Analysis
-                    </p>
-                  </div>
-                  {risks.map((finding, fi) => {
-                    const colors = getSeverityColor(finding.severity);
-                    return (
-                      <div key={fi} className="flex items-start gap-2">
-                        <span className={`mt-0.5 inline-flex items-center gap-1 rounded-md ${colors.bg}/20 px-1.5 py-0.5 text-[9px] font-bold ${colors.bg === "bg-red-500" ? "text-red-400" : colors.bg === "bg-orange-500" ? "text-orange-400" : colors.bg === "bg-amber-500" ? "text-amber-400" : "text-blue-400"} uppercase shrink-0`}>
-                          {finding.severity}
-                        </span>
-                        <p className="text-xs text-white/60 leading-relaxed">{finding.description}</p>
-                      </div>
-                    );
-                  })}
-                  {positives.map((pos, pi) => (
-                    <div key={pi} className="flex items-start gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-emerald-400/80 leading-relaxed">{pos}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}
@@ -208,7 +234,10 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
           {lightboxIdx > 0 && (
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-all"
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx - 1); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIdx(lightboxIdx - 1);
+              }}
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
@@ -216,7 +245,10 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
           {lightboxIdx < photos.length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-all"
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx + 1); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIdx(lightboxIdx + 1);
+              }}
             >
               <ChevronRight className="h-6 w-6" />
             </button>
@@ -232,7 +264,8 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
               {photos[lightboxIdx].caption || `Photo ${lightboxIdx + 1}`}
             </p>
             <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">
-              {lightboxIdx + 1} of {photos.length} &middot; {getSectionLabel(photos[lightboxIdx].section)}
+              {lightboxIdx + 1} of {photos.length} &middot;{" "}
+              {getSectionLabel(photos[lightboxIdx].section)}
             </p>
           </div>
         </div>
