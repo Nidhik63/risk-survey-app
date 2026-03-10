@@ -35,24 +35,62 @@ export async function exportReportToPDF(
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
     const pdf = new jsPDF("p", "mm", "a4");
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const pdfWidth = pdf.internal.pageSize.getWidth();   // 210mm
+    const pdfHeight = pdf.internal.pageSize.getHeight();  // 297mm
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
     const ratio = pdfWidth / imgWidth;
     const totalPdfHeight = imgHeight * ratio;
 
-    let heightLeft = totalPdfHeight;
-    let position = 0;
+    // Margins for pages 2+ (cover page gets full bleed)
+    const marginTop = 12;    // mm
+    const marginBottom = 10; // mm
+    const contentHeight = pdfHeight - marginTop - marginBottom; // usable per page
 
-    pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, totalPdfHeight);
-    heightLeft -= pdfHeight;
+    // Calculate total page count for "Page X of Y"
+    const remaining = Math.max(0, totalPdfHeight - pdfHeight);
+    const totalPages = 1 + (remaining > 0 ? Math.ceil(remaining / contentHeight) : 0);
 
+    // --- Page 1: Cover page (full bleed, no margins) ---
+    pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, totalPdfHeight);
+
+    let heightLeft = totalPdfHeight - pdfHeight;
+    let currentY = pdfHeight; // tracks position in the image
+    let pageNum = 1;
+
+    // --- Pages 2+: With margins, header line, and page numbers ---
     while (heightLeft > 0) {
-      position -= pdfHeight;
       pdf.addPage();
-      pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, totalPdfHeight);
-      heightLeft -= pdfHeight;
+      pageNum++;
+
+      // Place the image so content at currentY appears at marginTop
+      const yPos = marginTop - currentY;
+      pdf.addImage(imgData, "JPEG", 0, yPos, pdfWidth, totalPdfHeight);
+
+      // White-out bars to create clean margins
+      pdf.setFillColor(248, 250, 252); // #f8fafc — matches report background
+      pdf.rect(0, 0, pdfWidth, marginTop, "F");           // top margin
+      pdf.rect(0, pdfHeight - marginBottom, pdfWidth, marginBottom, "F"); // bottom margin
+
+      // Top accent line (indigo)
+      pdf.setDrawColor(99, 102, 241);
+      pdf.setLineWidth(0.4);
+      pdf.line(10, 3, pdfWidth - 10, 3);
+
+      // Header text: "RiskLens | Confidential" on left, page number on right
+      pdf.setFontSize(7);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(156, 163, 175); // gray-400
+      pdf.text("RiskLens  \u00B7  Confidential", 10, 7.5);
+      pdf.text(`Page ${pageNum} of ${totalPages}`, pdfWidth - 10, 7.5, { align: "right" });
+
+      // Bottom: subtle page number centered
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(180, 180, 180);
+      pdf.text(`\u2014 ${pageNum} \u2014`, pdfWidth / 2, pdfHeight - 4, { align: "center" });
+
+      currentY += contentHeight;
+      heightLeft -= contentHeight;
     }
 
     // On mobile, try blob URL approach for better compatibility
