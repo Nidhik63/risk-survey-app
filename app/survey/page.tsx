@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Loader2,
   AlertCircle,
+  FilePlus2,
 } from "lucide-react";
 import Link from "next/link";
 import SurveyWizard from "@/components/survey/SurveyWizard";
@@ -13,6 +14,8 @@ import RIReport from "@/components/report/RIReport";
 import type { SurveyDataV2, RIReportAnalysis } from "@/lib/survey-types";
 
 type AppState = "form" | "analyzing" | "report";
+
+const STORAGE_KEY = "risklens-v2-survey";
 
 const ANALYSIS_STEPS = [
   "Uploading survey data & images...",
@@ -33,6 +36,7 @@ export default function SurveyPage() {
   const [analysis, setAnalysis] = useState<RIReportAnalysis | null>(null);
   const [error, setError] = useState<string>("");
   const [analysisStep, setAnalysisStep] = useState(0);
+  const [wizardKey, setWizardKey] = useState(0); // Increment to force clean remount
 
   const handleSubmit = async (data: SurveyDataV2) => {
     setError("");
@@ -101,9 +105,13 @@ export default function SurveyPage() {
   };
 
   const handleNewSurvey = () => {
+    // Clear saved survey data from localStorage
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
     setSurveyData(null);
     setAnalysis(null);
+    setError("");
     setAppState("form");
+    setWizardKey((k) => k + 1); // Force SurveyWizard to remount fresh
   };
 
   // Report view
@@ -190,7 +198,18 @@ export default function SurveyPage() {
               RiskLens
             </span>
           </div>
-          <div className="w-14" />
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Start a new survey? This will clear all current data and photos.")) {
+                handleNewSurvey();
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-gray-50 hover:text-[var(--foreground)]"
+          >
+            <FilePlus2 className="h-3.5 w-3.5" />
+            New Survey
+          </button>
         </div>
       </nav>
 
@@ -212,7 +231,7 @@ export default function SurveyPage() {
           </div>
         )}
 
-        <SurveyWizard onSubmit={handleSubmit} />
+        <SurveyWizard key={wizardKey} onSubmit={handleSubmit} />
       </div>
     </div>
   );

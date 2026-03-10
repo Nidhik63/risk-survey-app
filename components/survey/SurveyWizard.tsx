@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2, Info, FilePlus2 } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
 import { defaultSurveyData } from "@/lib/survey-defaults";
@@ -25,6 +25,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   const [data, setData] = useState<SurveyDataV2>(defaultSurveyData);
   const [errors, setErrors] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [hasSavedData, setHasSavedData] = useState(false);
 
   // Auto-fill state
   const [autoFilling, setAutoFilling] = useState(false);
@@ -53,6 +54,13 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
           parsed.sectionA.floodRiskLevel = parsed.sectionA.floodRiskLevel || "";
           parsed.sectionA.floodRiskDetails = parsed.sectionA.floodRiskDetails || "";
         }
+        // Check if any meaningful data exists (not just empty defaults)
+        const hasContent =
+          (parsed.sectionA?.insuredName?.trim()) ||
+          (parsed.sectionA?.address?.trim()) ||
+          (parsed.sectionA?.surveyorName?.trim());
+        if (hasContent) setHasSavedData(true);
+
         setData((prev) => ({
           ...prev,
           sectionA: parsed.sectionA || prev.sectionA,
@@ -366,6 +374,47 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <StepIndicator currentStep={currentStep} />
+
+      {/* Resuming saved survey banner */}
+      {hasSavedData && (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Info className="h-5 w-5 shrink-0 text-blue-600" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">
+                  Resuming previous survey
+                </p>
+                <p className="text-xs text-blue-700">
+                  Your earlier progress was saved.{" "}
+                  {data.sectionA.insuredName && (
+                    <span className="font-medium">({data.sectionA.insuredName})</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Clear all saved data and start a fresh survey?")) {
+                  localStorage.removeItem(STORAGE_KEY);
+                  setData(defaultSurveyData);
+                  setCurrentStep(0);
+                  setErrors([]);
+                  setHasSavedData(false);
+                  setAutoFilled(false);
+                  setAutoFillSummary("");
+                  setAutoFilledFields(0);
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 transition-all hover:bg-blue-100 shrink-0"
+            >
+              <FilePlus2 className="h-3.5 w-3.5" />
+              Start Fresh
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Auto-fill success banner */}
       {autoFilled && !autoFilling && currentStep > 0 && (
