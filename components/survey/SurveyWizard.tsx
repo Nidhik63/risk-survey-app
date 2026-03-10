@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2, Info, FilePlus2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
 import { defaultSurveyData } from "@/lib/survey-defaults";
@@ -25,7 +25,11 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   const [data, setData] = useState<SurveyDataV2>(defaultSurveyData);
   const [errors, setErrors] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [hasSavedData, setHasSavedData] = useState(false);
+
+  // Resume gate — if saved data exists, show choice screen first
+  // "checking" → reading localStorage; "choosing" → waiting for user; "ready" → form visible
+  const [resumeState, setResumeState] = useState<"checking" | "choosing" | "ready">("checking");
+  const [savedLabel, setSavedLabel] = useState("");
 
   // Auto-fill state
   const [autoFilling, setAutoFilling] = useState(false);
@@ -35,13 +39,46 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   const [autoFilledFields, setAutoFilledFields] = useState<number>(0);
   const [autoFillProgress, setAutoFillProgress] = useState("");
 
-  // Load from localStorage on mount
+  // Check localStorage on mount — but DON'T auto-load if meaningful data exists
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Migrate old totalArea → plotArea for backward compatibility
+
+        // Check if any meaningful data exists (not just empty defaults)
+        const hasContent =
+          (parsed.sectionA?.insuredName?.trim()) ||
+          (parsed.sectionA?.address?.trim()) ||
+          (parsed.sectionA?.surveyorName?.trim());
+
+        if (hasContent) {
+          // Show choice screen instead of auto-loading
+          setSavedLabel(
+            parsed.sectionA?.insuredName?.trim() ||
+            parsed.sectionA?.address?.trim() ||
+            "Previous survey"
+          );
+          setResumeState("choosing");
+          setLoaded(true);
+          return;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    // No meaningful saved data — go straight to empty form
+    setResumeState("ready");
+    setLoaded(true);
+  }, []);
+
+  // Load saved data into form state (called when user clicks "Continue")
+  const loadSavedData = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Migrate old totalArea → plotArea
         if (parsed.sectionA) {
           if (parsed.sectionA.totalArea && !parsed.sectionA.plotArea) {
             parsed.sectionA.plotArea = parsed.sectionA.totalArea;
@@ -54,13 +91,6 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
           parsed.sectionA.floodRiskLevel = parsed.sectionA.floodRiskLevel || "";
           parsed.sectionA.floodRiskDetails = parsed.sectionA.floodRiskDetails || "";
         }
-        // Check if any meaningful data exists (not just empty defaults)
-        const hasContent =
-          (parsed.sectionA?.insuredName?.trim()) ||
-          (parsed.sectionA?.address?.trim()) ||
-          (parsed.sectionA?.surveyorName?.trim());
-        if (hasContent) setHasSavedData(true);
-
         setData((prev) => ({
           ...prev,
           sectionA: parsed.sectionA || prev.sectionA,
@@ -71,14 +101,22 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
         }));
       }
     } catch {
-      // ignore parse errors
+      // ignore
     }
-    setLoaded(true);
-  }, []);
+    setResumeState("ready");
+  };
 
-  // Auto-save to localStorage (excluding photos)
+  // Start fresh — clear localStorage and proceed with empty form
+  const startFresh = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setData(defaultSurveyData);
+    setCurrentStep(0);
+    setResumeState("ready");
+  };
+
+  // Auto-save to localStorage (excluding photos) — only when form is active
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || resumeState !== "ready") return;
     try {
       const toSave = {
         sectionA: data.sectionA,
@@ -91,7 +129,7 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
     } catch {
       // ignore quota errors
     }
-  }, [data, loaded]);
+  }, [data, loaded, resumeState]);
 
   // Auto-fill from photos (processes in batches of 15)
   const handleAutoFill = async () => {
@@ -371,50 +409,56 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
   const isLastStep = currentStep === WIZARD_STEPS.length - 1;
   const isPhotoStep = currentStep === 0;
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      <StepIndicator currentStep={currentStep} />
+  // ─── Choice screen: Resume or Start Fresh ───
+  if (resumeState === "choosing") {
+    return (
+      <div className="mx-auto max-w-md py-12">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+            <RotateCcw className="h-7 w-7 text-blue-600" />
+          </div>
+          <h2 className="text-lg font-bold text-[var(--foreground)]">
+            Previous survey found
+          </h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            You have a saved survey in progress:
+          </p>
+          <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+            &ldquo;{savedLabel}&rdquo;
+          </p>
 
-      {/* Resuming saved survey banner */}
-      {hasSavedData && (
-        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Info className="h-5 w-5 shrink-0 text-blue-600" />
-              <div>
-                <p className="text-sm font-semibold text-blue-800">
-                  Resuming previous survey
-                </p>
-                <p className="text-xs text-blue-700">
-                  Your earlier progress was saved.{" "}
-                  {data.sectionA.insuredName && (
-                    <span className="font-medium">({data.sectionA.insuredName})</span>
-                  )}
-                </p>
-              </div>
-            </div>
+          <div className="mt-8 flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm("Clear all saved data and start a fresh survey?")) {
-                  localStorage.removeItem(STORAGE_KEY);
-                  setData(defaultSurveyData);
-                  setCurrentStep(0);
-                  setErrors([]);
-                  setHasSavedData(false);
-                  setAutoFilled(false);
-                  setAutoFillSummary("");
-                  setAutoFilledFields(0);
-                }
-              }}
-              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 transition-all hover:bg-blue-100 shrink-0"
+              onClick={loadSavedData}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700"
             >
-              <FilePlus2 className="h-3.5 w-3.5" />
-              Start Fresh
+              <RotateCcw className="h-4 w-4" />
+              Continue Previous Survey
+            </button>
+            <button
+              type="button"
+              onClick={startFresh}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-3 text-sm font-bold text-[var(--foreground)] shadow-sm transition-all hover:bg-gray-50"
+            >
+              <FilePlus2 className="h-4 w-4" />
+              Start New Survey
             </button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // ─── Loading state ───
+  if (resumeState === "checking") {
+    return null;
+  }
+
+  // ─── Main form ───
+  return (
+    <div className="mx-auto max-w-3xl">
+      <StepIndicator currentStep={currentStep} />
 
       {/* Auto-fill success banner */}
       {autoFilled && !autoFilling && currentStep > 0 && (
