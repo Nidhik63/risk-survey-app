@@ -31,38 +31,9 @@ async function geocodeQuery(query: string): Promise<GeocodingResult | null> {
   };
 }
 
-// Smart geocoding: try full address first, then progressively simpler versions
+// Exact address geocoding only — no fallback to avoid inaccurate coordinates
 async function geocodeAddress(address: string): Promise<GeocodingResult | null> {
-  // Try 1: Full address as-is
-  const full = await geocodeQuery(address);
-  if (full) return full;
-
-  // Try 2: Remove plot/unit/lot numbers — strip "Plot No XXXX," or similar prefixes
-  const withoutPlot = address.replace(
-    /^(plot|unit|lot|bldg|building|flat|villa|shop|warehouse)\s*(no\.?|number|#)?\s*[\w-]+[,\s]+/i,
-    ""
-  ).trim();
-  if (withoutPlot !== address) {
-    const result = await geocodeQuery(withoutPlot);
-    if (result) return result;
-  }
-
-  // Try 3: Remove everything before the first comma (strip specific identifier)
-  const parts = address.split(",").map((p) => p.trim());
-  if (parts.length >= 3) {
-    const simplified = parts.slice(1).join(", ");
-    const result = await geocodeQuery(simplified);
-    if (result) return result;
-  }
-
-  // Try 4: Just the last 2-3 parts (city + country)
-  if (parts.length >= 2) {
-    const cityCountry = parts.slice(-2).join(", ");
-    const result = await geocodeQuery(cityCountry);
-    if (result) return result;
-  }
-
-  return null;
+  return await geocodeQuery(address);
 }
 
 // Assess flood risk via Open-Meteo Flood API (free, no API key)
