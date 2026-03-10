@@ -29,8 +29,10 @@ export default function CoverPage({ surveyData, reportRef }: CoverPageProps) {
       {/* Top accent bar */}
       <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
 
-      <div className="px-10 pt-10 pb-8 sm:px-14 sm:pt-14 sm:pb-10">
-        {/* Branding */}
+      {/* Main content — flex column with vertical centering */}
+      <div className="flex min-h-[920px] flex-col justify-between px-10 py-12 sm:px-14 sm:py-16">
+
+        {/* Top: Branding */}
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/10">
             <Shield className="h-7 w-7 text-white" />
@@ -43,57 +45,60 @@ export default function CoverPage({ surveyData, reportRef }: CoverPageProps) {
           </div>
         </div>
 
-        {/* Title Section */}
-        <div className="mt-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
-              Confidential Report
-            </span>
+        {/* Centre: Title + Property Cards */}
+        <div className="flex-1 flex flex-col justify-center py-10">
+          {/* Title Section */}
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
+                Confidential Report
+              </span>
+            </div>
+            <h2 className="mt-5 text-5xl font-black leading-[1.1] tracking-tight sm:text-6xl">
+              Risk Inspection
+              <br />
+              <span className="text-blue-400">
+                Report
+              </span>
+            </h2>
           </div>
-          <h2 className="mt-5 text-5xl font-black leading-[1.1] tracking-tight sm:text-6xl">
-            Risk Inspection
-            <br />
-            <span className="text-blue-400">
-              Report
-            </span>
-          </h2>
+
+          {/* Property Details — 2x2 glass cards */}
+          <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+              <Building2 className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Insured</p>
+                <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{sectionA.insuredName || "\u2014"}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+              <MapPin className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Property Address</p>
+                <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{sectionA.address || "\u2014"}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+              <Calendar className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Date of Inspection</p>
+                <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{date}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
+              <User className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Surveyor</p>
+                <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{sectionA.surveyorName || "\u2014"}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Property Details — 2x2 glass cards */}
-        <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
-            <Building2 className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Insured</p>
-              <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{sectionA.insuredName || "\u2014"}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
-            <MapPin className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Property Address</p>
-              <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{sectionA.address || "\u2014"}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
-            <Calendar className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Date of Inspection</p>
-              <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{date}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5">
-            <User className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Surveyor</p>
-              <p className="mt-1.5 text-base font-bold text-white/90 leading-snug">{sectionA.surveyorName || "\u2014"}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Stats Grid */}
-        <div className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-6">
+        {/* Bottom: Stats Grid — always at bottom */}
+        <div className="grid grid-cols-3 gap-3">
           {stats.map((stat) => (
             <div
               key={stat.label}
@@ -102,7 +107,7 @@ export default function CoverPage({ surveyData, reportRef }: CoverPageProps) {
               <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">
                 {stat.label}
               </p>
-              <p className="mt-1 text-xs font-bold text-white/80 leading-snug truncate">
+              <p className="mt-1 text-xs font-bold text-white/80 leading-snug break-words">
                 {stat.value}
               </p>
             </div>
