@@ -51,7 +51,7 @@ export default function Home() {
               <Shield className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold text-[var(--foreground)]">
-              RiskLens
+              NTRU
             </span>
           </div>
           <Link
@@ -65,20 +65,20 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1e3a5f] via-[#2d5a8e] to-[#1e3a5f]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#2a0e42] via-[#3D1556] to-[#2a0e42]" />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDF6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-50" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 sm:py-32">
           <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-blue-100 backdrop-blur-sm">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-purple-100 backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
-              Professional Risk Inspection Reports
+              Empowering Risk Solutions
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
               AI-Powered
               <br />
               <span className="text-[var(--accent-light)]">Risk Surveys</span>
             </h1>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-blue-100">
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-purple-100">
               Complete GCC-standard property checklists, upload site photos, and
               generate professional Risk Inspection Reports in minutes. Built for
               insurance risk engineers.
@@ -86,7 +86,7 @@ export default function Home() {
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
                 href="/survey"
-                className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-7 py-3.5 text-base font-semibold text-[#1e3a5f] shadow-lg transition-all hover:bg-[var(--accent-light)] hover:shadow-xl"
+                className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-7 py-3.5 text-base font-semibold text-[#1a0a2e] shadow-lg transition-all hover:bg-[var(--accent-light)] hover:shadow-xl"
               >
                 Start New Survey
                 <ArrowRight className="h-5 w-5" />
@@ -135,7 +135,7 @@ export default function Home() {
               <span className="absolute top-5 right-5 text-4xl font-black text-gray-100">
                 {item.step}
               </span>
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 transition-colors group-hover:bg-blue-100">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 transition-colors group-hover:bg-purple-100">
                 <item.icon className="h-6 w-6 text-[var(--primary)]" />
               </div>
               <h3 className="text-lg font-semibold text-[var(--foreground)]">
@@ -224,7 +224,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto max-w-6xl px-6 py-6 text-center text-sm text-[var(--muted)]">
-          RiskLens &mdash; AI-Powered Property Risk Inspection
+          NTRU &mdash; NewTech Reinsurance &amp; Underwriting Limited
         </div>
       </footer>
     </div>

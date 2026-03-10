@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RiskLens - AI-Powered Property Risk Assessment",
+  title: "NTRU RiskLens - AI-Powered Property Risk Assessment",
   description:
-    "Professional insurance risk survey tool powered by AI. Upload site photos and get scientifically-backed risk scores with detailed reports.",
+    "Professional insurance risk survey tool by NewTech Reinsurance & Underwriting. Upload site photos and get AI-powered risk scores with detailed RI reports.",
 };
 
 export default function RootLayout({

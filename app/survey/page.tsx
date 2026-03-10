@@ -195,7 +195,7 @@ export default function SurveyPage() {
               <Shield className="h-4 w-4 text-white" />
             </div>
             <span className="text-lg font-bold text-[var(--foreground)]">
-              RiskLens
+              NTRU
             </span>
           </div>
           <button

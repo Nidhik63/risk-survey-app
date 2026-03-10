@@ -53,11 +53,11 @@ export default function ReportToolbar({
 
         {/* Center brand mark */}
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0a0a0a]">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#3D1556]">
             <Shield className="h-3.5 w-3.5 text-white" />
           </div>
           <span className="text-sm font-black text-[var(--foreground)] tracking-tight hidden sm:inline">
-            RiskLens
+            NTRU
           </span>
         </div>
 
@@ -81,7 +81,7 @@ export default function ReportToolbar({
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-1.5 rounded-xl bg-[#0a0a0a] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-gray-800 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl bg-[#3D1556] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#5B2D8E] disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
             {exporting ? "Generating..." : "Export PDF"}

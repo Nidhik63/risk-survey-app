@@ -72,16 +72,16 @@ export async function exportReportToPDF(
       pdf.rect(0, 0, pdfWidth, marginTop, "F");           // top margin
       pdf.rect(0, pdfHeight - marginBottom, pdfWidth, marginBottom, "F"); // bottom margin
 
-      // Top accent line (indigo)
-      pdf.setDrawColor(99, 102, 241);
+      // Top accent line (NTRU purple)
+      pdf.setDrawColor(93, 45, 142);
       pdf.setLineWidth(0.4);
       pdf.line(10, 3, pdfWidth - 10, 3);
 
-      // Header text: "RiskLens | Confidential" on left, page number on right
+      // Header text: "NTRU | Confidential" on left, page number on right
       pdf.setFontSize(7);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(156, 163, 175); // gray-400
-      pdf.text("RiskLens  \u00B7  Confidential", 10, 7.5);
+      pdf.text("NTRU  \u00B7  Confidential", 10, 7.5);
       pdf.text(`Page ${pageNum} of ${totalPages}`, pdfWidth - 10, 7.5, { align: "right" });
 
       // Bottom: subtle page number centered
