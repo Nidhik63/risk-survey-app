@@ -109,6 +109,33 @@ body {
 .stagger-5 { animation-delay: 0.5s; opacity: 0; }
 .stagger-6 { animation-delay: 0.6s; opacity: 0; }
 
+/* ── Report print & page-break utilities ── */
+
+/* Force a page break before this element (print & PDF) */
+.page-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* Force a page break after this element */
+.page-break-after {
+  break-after: page;
+  page-break-after: always;
+}
+
+/* Prevent breaking inside this element */
+.break-inside-avoid {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Cover page print-safe background */
+.print-cover-page {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color-adjust: exact;
+}
+
 /* Print styles for PDF */
 @media print {
   body {
@@ -116,5 +143,22 @@ body {
   }
   .no-print {
     display: none !important;
+  }
+  .print-cover-page {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  .page-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+  .page-break-after {
+    break-after: page;
+    page-break-after: always;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

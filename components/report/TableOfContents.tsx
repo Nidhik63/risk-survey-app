@@ -30,7 +30,7 @@ export default function TableOfContents({ items }: TableOfContentsProps) {
   };
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-[var(--surface)] p-6 sm:p-8">
+    <div className="rounded-3xl border border-gray-200 bg-[var(--surface)] p-6 sm:p-8 shadow-sm">
       <h2 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest mb-4">
         Contents
       </h2>

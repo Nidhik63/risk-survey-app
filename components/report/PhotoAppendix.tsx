@@ -134,7 +134,7 @@ export default function PhotoAppendix({ photos, sections }: PhotoAppendixProps) 
         return (
           <div
             key={sectionKey}
-            className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+            className="overflow-hidden rounded-2xl border bg-white shadow-sm page-break-before"
             style={{ borderColor: colors.border }}
           >
             {/* ── Category header ── */}

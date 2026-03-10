@@ -9,7 +9,7 @@ interface PropertySummaryProps {
 
 function DataCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-gray-50/80 border border-gray-100 px-4 py-3">
+    <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3.5 break-inside-avoid">
       <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">{label}</p>
       <p className="mt-1.5 text-sm font-semibold text-[var(--foreground)] leading-snug">
         {value || "\u2014"}
@@ -22,7 +22,7 @@ export default function PropertySummary({ surveyData }: PropertySummaryProps) {
   const { sectionA, sectionB } = surveyData;
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-[var(--surface)] p-6 sm:p-8">
+    <div className="rounded-3xl border border-gray-200 bg-[var(--surface)] p-6 sm:p-8 shadow-sm break-inside-avoid">
       <div className="flex items-center gap-3 mb-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600">
           <Building2 className="h-5 w-5 text-white" />
@@ -33,7 +33,7 @@ export default function PropertySummary({ surveyData }: PropertySummaryProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <DataCard label="Insured" value={sectionA.insuredName} />
         <DataCard label="Address" value={sectionA.address} />
         <DataCard label="Occupancy" value={`${sectionA.occupancy}${sectionA.occupancyDetails ? ` \u2014 ${sectionA.occupancyDetails}` : ""}`} />

@@ -10,13 +10,13 @@ interface ComplianceTableProps {
 function getStatusStyle(status: string) {
   switch (status) {
     case "Compliant":
-      return { icon: <CheckCircle2 className="h-4 w-4" />, color: "#10b981", bg: "rgba(16,185,129,0.08)", label: "Pass" };
+      return { icon: <CheckCircle2 className="h-4 w-4" />, color: "#10b981", bg: "rgba(16,185,129,0.1)", label: "Pass" };
     case "Non-Compliant":
-      return { icon: <XCircle className="h-4 w-4" />, color: "#ef4444", bg: "rgba(239,68,68,0.08)", label: "Fail" };
+      return { icon: <XCircle className="h-4 w-4" />, color: "#ef4444", bg: "rgba(239,68,68,0.1)", label: "Fail" };
     case "Partially Compliant":
-      return { icon: <AlertCircle className="h-4 w-4" />, color: "#f59e0b", bg: "rgba(245,158,11,0.08)", label: "Partial" };
+      return { icon: <AlertCircle className="h-4 w-4" />, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", label: "Partial" };
     default:
-      return { icon: <Minus className="h-4 w-4" />, color: "#9ca3af", bg: "rgba(156,163,175,0.08)", label: "N/A" };
+      return { icon: <Minus className="h-4 w-4" />, color: "#9ca3af", bg: "rgba(156,163,175,0.1)", label: "N/A" };
   }
 }
 
@@ -50,19 +50,19 @@ export default function ComplianceTable({ items }: ComplianceTableProps) {
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl bg-[var(--surface)] border border-gray-100 p-4 text-center">
+        <div className="rounded-2xl bg-[var(--surface)] border border-gray-200 p-4 text-center shadow-sm">
           <p className="text-3xl font-black text-[var(--foreground)]">{complianceRate}%</p>
           <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest mt-1">Rate</p>
         </div>
-        <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4 text-center">
+        <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center shadow-sm">
           <p className="text-3xl font-black text-emerald-600">{compliantCount}</p>
           <p className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-widest mt-1">Compliant</p>
         </div>
-        <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 text-center">
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-center shadow-sm">
           <p className="text-3xl font-black text-amber-600">{partialCount}</p>
           <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-widest mt-1">Partial</p>
         </div>
-        <div className="rounded-2xl bg-red-50 border border-red-100 p-4 text-center">
+        <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-center shadow-sm">
           <p className="text-3xl font-black text-red-600">{nonCompliantCount}</p>
           <p className="text-[10px] font-bold text-red-600/60 uppercase tracking-widest mt-1">Non-Compliant</p>
         </div>
@@ -71,15 +71,15 @@ export default function ComplianceTable({ items }: ComplianceTableProps) {
       {/* Items by category */}
       <div className="space-y-4">
         {Object.entries(grouped).map(([category, catItems]) => (
-          <div key={category} className="rounded-2xl border border-gray-100 bg-[var(--surface)] overflow-hidden">
-            <div className="px-5 py-3 bg-gray-50/80 border-b border-gray-100">
+          <div key={category} className="rounded-2xl border border-gray-200 bg-[var(--surface)] overflow-hidden shadow-sm break-inside-avoid">
+            <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
               <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-widest">{category}</h3>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-100">
               {catItems.map((item, i) => {
                 const s = getStatusStyle(item.status);
                 return (
-                  <div key={i} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
+                  <div key={i} className="flex items-center gap-4 px-5 py-3.5">
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
                       style={{ backgroundColor: s.bg, color: s.color }}

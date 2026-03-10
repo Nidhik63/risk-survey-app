@@ -44,10 +44,10 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
 
   // Group recommendations by timeframe
   const recGroups = [
-    { key: "Immediate", label: "Immediate Action", color: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.12)" },
-    { key: "30 days", label: "Within 30 Days", color: "#f97316", bg: "rgba(249,115,22,0.06)", border: "rgba(249,115,22,0.12)" },
-    { key: "90 days", label: "Within 90 Days", color: "#f59e0b", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.12)" },
-    { key: "12 months", label: "Within 12 Months", color: "#3b82f6", bg: "rgba(59,130,246,0.06)", border: "rgba(59,130,246,0.12)" },
+    { key: "Immediate", label: "Immediate Action", color: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)" },
+    { key: "30 days", label: "Within 30 Days", color: "#f97316", bg: "rgba(249,115,22,0.06)", border: "rgba(249,115,22,0.15)" },
+    { key: "90 days", label: "Within 90 Days", color: "#f59e0b", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
+    { key: "12 months", label: "Within 12 Months", color: "#3b82f6", bg: "rgba(59,130,246,0.06)", border: "rgba(59,130,246,0.15)" },
   ];
 
   return (
@@ -60,15 +60,19 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
         filename={filename}
       />
 
-      <div id="ri-report" className="mx-auto max-w-5xl px-4 py-10 space-y-8">
-        {/* 1. Cover Page */}
-        <CoverPage surveyData={surveyData} reportRef={reportRef} />
+      <div id="ri-report" className="mx-auto max-w-5xl px-4 py-10 space-y-10">
+        {/* ═══ 1. Cover Page ═══ */}
+        <div className="page-break-after">
+          <CoverPage surveyData={surveyData} reportRef={reportRef} />
+        </div>
 
-        {/* 2. Table of Contents */}
-        <TableOfContents items={tocItems} />
+        {/* ═══ 2. Table of Contents ═══ */}
+        <div className="page-break-after">
+          <TableOfContents items={tocItems} />
+        </div>
 
-        {/* 3. Executive Summary */}
-        <div id="section-summary" className="rounded-3xl border border-gray-100 bg-[var(--surface)] p-6 sm:p-10">
+        {/* ═══ 3. Executive Summary ═══ */}
+        <div id="section-summary" className="rounded-3xl border border-gray-200 bg-[var(--surface)] p-6 sm:p-10 break-inside-avoid page-break-after shadow-sm">
           <div className="flex items-center gap-3 mb-8">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900">
               <Shield className="h-5 w-5 text-white" />
@@ -92,7 +96,7 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
                   { label: "Floors", value: surveyData.sectionA.numberOfFloors || "\u2014" },
                   { label: "Flood Risk", value: surveyData.sectionA.floodRiskLevel || "\u2014" },
                 ].map((stat) => (
-                  <div key={stat.label} className="rounded-2xl bg-gray-50 border border-gray-100 p-4 text-center">
+                  <div key={stat.label} className="rounded-2xl bg-gray-50 border border-gray-200 p-4 text-center">
                     <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">{stat.label}</p>
                     <p className="mt-1.5 text-sm font-bold text-[var(--foreground)]">{stat.value}</p>
                   </div>
@@ -105,21 +109,25 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
           </div>
         </div>
 
-        {/* 4. Property Summary */}
-        <div id="section-property">
+        {/* ═══ 4. Property Summary ═══ */}
+        <div id="section-property" className="page-break-after">
           <PropertySummary surveyData={surveyData} />
         </div>
 
-        {/* 5. Section Analysis */}
+        {/* ═══ 5. Section Analysis — each on new page ═══ */}
         {analysis.sections.map((section, index) => (
-          <ReportSection key={section.sectionId} section={section} sectionIndex={index} />
+          <div key={section.sectionId} className="page-break-before">
+            <ReportSection section={section} sectionIndex={index} />
+          </div>
         ))}
 
-        {/* 6. Compliance */}
-        <ComplianceTable items={analysis.complianceItems} />
+        {/* ═══ 6. Compliance — new page ═══ */}
+        <div className="page-break-before">
+          <ComplianceTable items={analysis.complianceItems} />
+        </div>
 
-        {/* 7. Priority Recommendations */}
-        <div id="section-recommendations" className="space-y-6">
+        {/* ═══ 7. Priority Recommendations — new page ═══ */}
+        <div id="section-recommendations" className="space-y-6 page-break-before">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600">
               <Target className="h-5 w-5 text-white" />
@@ -146,7 +154,7 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
                 {recs.map((rec) => (
                   <div
                     key={rec.priority}
-                    className="flex items-start gap-4 rounded-2xl p-5 transition-all"
+                    className="flex items-start gap-4 rounded-2xl p-5 break-inside-avoid"
                     style={{ backgroundColor: group.bg, border: `1px solid ${group.border}` }}
                   >
                     <span
@@ -174,17 +182,14 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
           })}
         </div>
 
-        {/* 8. Photo Evidence with AI overlays */}
-        <PhotoAppendix photos={surveyData.photos} sections={analysis.sections} />
+        {/* ═══ 8. Photo Evidence — new page ═══ */}
+        <div className="page-break-before">
+          <PhotoAppendix photos={surveyData.photos} sections={analysis.sections} />
+        </div>
 
-        {/* 9. Disclaimer */}
-        <div className="rounded-3xl bg-[#0a0a0a] p-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10">
-              <Shield className="h-4 w-4 text-white/60" />
-            </div>
-          </div>
-          <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-2">
+        {/* ═══ 9. Disclaimer Footer — compact ═══ */}
+        <div className="rounded-2xl bg-[#0f172a] px-8 py-6 text-center break-inside-avoid print-cover-page">
+          <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-2">
             Report generated by RiskLens AI
           </p>
           <p className="text-[11px] text-white/30 max-w-lg mx-auto leading-relaxed">
@@ -193,7 +198,7 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
             inspection. All findings and recommendations should be verified by a qualified risk
             engineer before underwriting decisions are made.
           </p>
-          <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-white/20">
+          <div className="mt-3 flex items-center justify-center gap-4 text-[10px] text-white/20">
             <span>Ref: {reportRef}</span>
             <span>&middot;</span>
             <span>

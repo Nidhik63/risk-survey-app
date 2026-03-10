@@ -23,16 +23,16 @@ export async function exportReportToPDF(
     );
 
     const canvas = await html2canvas(element, {
-      scale: 1.5,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       logging: false,
-      backgroundColor: "#ffffff",
+      backgroundColor: "#f8fafc",
       windowWidth: 1024,
       imageTimeout: 30000,
     });
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.85);
+    const imgData = canvas.toDataURL("image/jpeg", 0.92);
     const pdf = new jsPDF("p", "mm", "a4");
 
     const pdfWidth = pdf.internal.pageSize.getWidth();

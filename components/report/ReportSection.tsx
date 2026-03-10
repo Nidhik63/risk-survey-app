@@ -18,11 +18,11 @@ interface ReportSectionProps {
 
 function getGradeStyle(grade: string) {
   switch (grade) {
-    case "Low": return { color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.15)" };
-    case "Moderate": return { color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.15)" };
-    case "High": return { color: "#f97316", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.15)" };
-    case "Critical": return { color: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.15)" };
-    default: return { color: "#6b7280", bg: "rgba(107,114,128,0.08)", border: "rgba(107,114,128,0.15)" };
+    case "Low": return { color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)" };
+    case "Moderate": return { color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" };
+    case "High": return { color: "#f97316", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.2)" };
+    case "Critical": return { color: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)" };
+    default: return { color: "#6b7280", bg: "rgba(107,114,128,0.08)", border: "rgba(107,114,128,0.2)" };
   }
 }
 
@@ -50,9 +50,12 @@ export default function ReportSection({ section }: ReportSectionProps) {
   return (
     <div
       id={`section-${section.sectionId}`}
-      className="rounded-3xl border bg-[var(--surface)] overflow-hidden transition-all duration-300"
+      className="rounded-3xl border-2 bg-[var(--surface)] overflow-hidden shadow-sm"
       style={{ borderColor: style.border }}
     >
+      {/* Colored top accent bar */}
+      <div className="h-1" style={{ backgroundColor: style.color }} />
+
       {/* Header */}
       <div className="p-6 sm:p-8">
         <div className="flex items-start justify-between gap-4">
@@ -111,7 +114,7 @@ export default function ReportSection({ section }: ReportSectionProps) {
 
         {/* Positives */}
         {section.positives && section.positives.length > 0 && (
-          <div className="mt-6 rounded-2xl bg-emerald-50/50 border border-emerald-100 p-5">
+          <div className="mt-6 rounded-2xl bg-emerald-50 border border-emerald-200 p-5 break-inside-avoid">
             <div className="flex items-center gap-2 mb-3">
               <ThumbsUp className="h-4 w-4 text-emerald-600" />
               <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-widest">
@@ -138,7 +141,7 @@ export default function ReportSection({ section }: ReportSectionProps) {
             {section.findings.map((finding, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-gray-100 bg-gray-50/50 p-5 transition-all hover:shadow-sm"
+                className="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 break-inside-avoid"
               >
                 <div className="flex items-start gap-3">
                   {getSeverityIcon(finding.severity)}
@@ -154,7 +157,7 @@ export default function ReportSection({ section }: ReportSectionProps) {
                     <p className="mt-2 text-sm text-gray-600 leading-relaxed">{finding.description}</p>
 
                     {/* Recommendation card */}
-                    <div className="mt-3 rounded-xl bg-white border border-gray-200/60 p-4">
+                    <div className="mt-3 rounded-xl bg-white border border-gray-200 p-4">
                       <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest mb-1.5">
                         Recommendation
                       </p>
