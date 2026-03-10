@@ -7,9 +7,16 @@ import SelectField from "@/components/fields/SelectField";
 import TextAreaField from "@/components/fields/TextAreaField";
 import { Building2, MapPin, Loader2, Droplets, PenLine } from "lucide-react";
 
+interface FireStationResult {
+  name: string;
+  distance: number;
+  category: string;
+}
+
 interface SectionAFormProps {
   data: SectionA;
   onChange: (data: SectionA) => void;
+  onFireBrigadeFound?: (station: FireStationResult) => void;
 }
 
 const OCCUPANCY_OPTIONS = [
@@ -29,7 +36,7 @@ const OCCUPANCY_OPTIONS = [
   { value: "Other", label: "Other" },
 ];
 
-export default function SectionAForm({ data, onChange }: SectionAFormProps) {
+export default function SectionAForm({ data, onChange, onFireBrigadeFound }: SectionAFormProps) {
   const update = (field: keyof SectionA, value: string) => {
     onChange({ ...data, [field]: value });
   };
@@ -69,6 +76,11 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
         floodRiskLevel: result.floodRiskLevel || "",
         floodRiskDetails: result.floodRiskDetails || "",
       });
+
+      // Auto-fill fire brigade in Section C
+      if (result.nearestFireStation && onFireBrigadeFound) {
+        onFireBrigadeFound(result.nearestFireStation);
+      }
     } catch {
       setGeocodeError("Failed to lookup coordinates. You can enter them manually.");
       setShowManualCoords(true);
@@ -105,6 +117,11 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
         floodRiskDetails: result.floodRiskDetails || "",
       });
       setShowManualCoords(false);
+
+      // Auto-fill fire brigade in Section C
+      if (result.nearestFireStation && onFireBrigadeFound) {
+        onFireBrigadeFound(result.nearestFireStation);
+      }
     } catch {
       setGeocodeError("Failed to assess flood risk. Please try again.");
     } finally {

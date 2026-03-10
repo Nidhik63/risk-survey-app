@@ -314,6 +314,15 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
           <SectionAForm
             data={data.sectionA}
             onChange={(sectionA) => setData((prev) => ({ ...prev, sectionA }))}
+            onFireBrigadeFound={(station) =>
+              setData((prev) => ({
+                ...prev,
+                sectionC: {
+                  ...prev.sectionC,
+                  fireBrigade: `${station.category} (${station.name}, ${station.distance} km)`,
+                },
+              }))
+            }
           />
         );
       case 2:

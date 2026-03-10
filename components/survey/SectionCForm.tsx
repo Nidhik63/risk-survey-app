@@ -4,7 +4,7 @@ import type { SectionC } from "@/lib/survey-types";
 import SelectField from "@/components/fields/SelectField";
 import TextField from "@/components/fields/TextField";
 import YesNoField from "@/components/fields/YesNoField";
-import { Flame } from "lucide-react";
+import { Flame, MapPin } from "lucide-react";
 
 interface SectionCFormProps {
   data: SectionC;
@@ -176,12 +176,34 @@ export default function SectionCForm({ data, onChange }: SectionCFormProps) {
                 onChange={(v) => update("emergencyExits", v)}
                 options={EXIT_OPTIONS}
               />
-              <SelectField
-                label="Nearest Fire Brigade"
-                value={data.fireBrigade}
-                onChange={(v) => update("fireBrigade", v)}
-                options={BRIGADE_OPTIONS}
-              />
+              {/* Fire Brigade — auto-detected from GEO code or manual select */}
+              {data.fireBrigade && data.fireBrigade.includes("(") ? (
+                <div>
+                  <label className="block text-sm font-semibold text-[var(--foreground)] mb-1.5">
+                    Nearest Fire Brigade
+                  </label>
+                  <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-3">
+                    <MapPin className="h-4 w-4 text-green-600 shrink-0" />
+                    <span className="text-sm font-medium text-green-800">
+                      {data.fireBrigade}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update("fireBrigade", "")}
+                    className="mt-1 text-[11px] text-gray-400 hover:text-gray-600 underline"
+                  >
+                    Change manually
+                  </button>
+                </div>
+              ) : (
+                <SelectField
+                  label="Nearest Fire Brigade"
+                  value={data.fireBrigade}
+                  onChange={(v) => update("fireBrigade", v)}
+                  options={BRIGADE_OPTIONS}
+                />
+              )}
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <TextField

@@ -36,6 +36,90 @@ async function geocodeAddress(address: string): Promise<GeocodingResult | null> 
   return await geocodeQuery(address);
 }
 
+// Find nearest fire station via Overpass API (OpenStreetMap, free, no API key)
+async function findNearestFireStation(
+  lat: string,
+  lng: string
+): Promise<{ name: string; distance: number; category: string } | null> {
+  try {
+    // Search within 20km radius for fire stations
+    const query = `
+      [out:json][timeout:10];
+      (
+        node["amenity"="fire_station"](around:20000,${lat},${lng});
+        way["amenity"="fire_station"](around:20000,${lat},${lng});
+      );
+      out center body 5;
+    `;
+
+    const response = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const elements = data?.elements || [];
+
+    if (elements.length === 0) return null;
+
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+
+    // Calculate distance to each station and find the closest
+    let closest: { name: string; distance: number } | null = null;
+
+    for (const el of elements) {
+      const sLat = el.lat ?? el.center?.lat;
+      const sLng = el.lon ?? el.center?.lon;
+      if (!sLat || !sLng) continue;
+
+      // Haversine distance in km
+      const R = 6371;
+      const dLat = ((sLat - latNum) * Math.PI) / 180;
+      const dLon = ((sLng - lngNum) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((latNum * Math.PI) / 180) *
+          Math.cos((sLat * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      const name =
+        el.tags?.name ||
+        el.tags?.["name:en"] ||
+        el.tags?.operator ||
+        "Fire Station";
+
+      if (!closest || dist < closest.distance) {
+        closest = { name, distance: dist };
+      }
+    }
+
+    if (!closest) return null;
+
+    // Map distance to the dropdown category
+    let category: string;
+    if (closest.distance <= 5) {
+      category = "Public - Within 5 km";
+    } else if (closest.distance <= 15) {
+      category = "Public - 5-15 km";
+    } else {
+      category = "Public - Over 15 km";
+    }
+
+    return {
+      name: closest.name,
+      distance: Math.round(closest.distance * 10) / 10,
+      category,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Assess flood risk via Open-Meteo Flood API (free, no API key)
 async function assessFloodRisk(
   lat: string,
@@ -126,7 +210,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const flood = await assessFloodRisk(lat, lng);
+      const [flood, fireStation] = await Promise.all([
+        assessFloodRisk(lat, lng),
+        findNearestFireStation(lat, lng),
+      ]);
 
       return NextResponse.json({
         lat,
@@ -134,6 +221,7 @@ export async function POST(request: NextRequest) {
         displayName: "Manual coordinates",
         floodRiskLevel: flood.riskLevel,
         floodRiskDetails: flood.details,
+        nearestFireStation: fireStation,
       });
     }
 
@@ -159,7 +247,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const flood = await assessFloodRisk(geoResult.lat, geoResult.lng);
+    const [flood, fireStation] = await Promise.all([
+      assessFloodRisk(geoResult.lat, geoResult.lng),
+      findNearestFireStation(geoResult.lat, geoResult.lng),
+    ]);
 
     return NextResponse.json({
       lat: geoResult.lat,
@@ -167,6 +258,7 @@ export async function POST(request: NextRequest) {
       displayName: geoResult.displayName,
       floodRiskLevel: flood.riskLevel,
       floodRiskDetails: flood.details,
+      nearestFireStation: fireStation,
     });
   } catch (error) {
     console.error("Geocode error:", error);
