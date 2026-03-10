@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import type { SectionA } from "@/lib/survey-types";
 import TextField from "@/components/fields/TextField";
 import SelectField from "@/components/fields/SelectField";
 import TextAreaField from "@/components/fields/TextAreaField";
-import { Building2, MapPin, Loader2, Droplets, PenLine, Flame } from "lucide-react";
+import { Building2, MapPin, Loader2, Droplets, PenLine, Flame, Map } from "lucide-react";
+
+// Dynamic import — Leaflet doesn't work with SSR
+const MapPicker = dynamic(() => import("./MapPicker"), { ssr: false });
 
 interface FireStationResult {
   name: string;
@@ -48,6 +52,7 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
   const [manualLng, setManualLng] = useState("");
   const [fireStationInfo, setFireStationInfo] = useState<string>("");
   const [fireStationNote, setFireStationNote] = useState<string>("");
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Auto-lookup from address
   const handleGeocode = async () => {
@@ -145,6 +150,61 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
     }
   };
 
+  // Handle map pin confirmed — same as manual coords but from map click
+  const handleMapConfirm = async (lat: number, lng: number) => {
+    setShowMapPicker(false);
+    setGeocoding(true);
+    setGeocodeError("");
+    setFireStationInfo("");
+    setFireStationNote("");
+
+    try {
+      const response = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: lat.toString(), lng: lng.toString() }),
+      });
+
+      const result = await response.json();
+
+      if (result.error && !result.lat) {
+        setGeocodeError(result.error);
+        return;
+      }
+
+      onChange({
+        ...data,
+        latitude: result.lat || lat.toString(),
+        longitude: result.lng || lng.toString(),
+        floodRiskLevel: result.floodRiskLevel || "",
+        floodRiskDetails: result.floodRiskDetails || "",
+      });
+      setShowManualCoords(false);
+
+      // Auto-fill fire brigade in Section C
+      if (result.nearestFireStation && onFireBrigadeFound) {
+        onFireBrigadeFound(result.nearestFireStation);
+        setFireStationInfo(
+          `${result.nearestFireStation.name} — ${result.nearestFireStation.distance} km (${result.nearestFireStation.category})`
+        );
+      } else {
+        setFireStationNote(result.fireStationNote || "Fire station lookup did not return results.");
+      }
+    } catch {
+      // Even if flood/fire lookup fails, save the coordinates from the map
+      onChange({
+        ...data,
+        latitude: lat.toFixed(8),
+        longitude: lng.toFixed(8),
+        floodRiskLevel: "",
+        floodRiskDetails: "",
+      });
+      setGeocodeError("Coordinates saved. Flood risk lookup failed — please try again later.");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   const floodColor =
     data.floodRiskLevel === "Low"
       ? "bg-green-50 border-green-200 text-green-700"
@@ -222,18 +282,28 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
             <p className="mt-1.5 text-xs text-amber-600">{geocodeError}</p>
           )}
 
-          {/* Manual coordinate entry — shown when auto-lookup fails or user clicks link */}
+          {/* Alternative options — shown when no coordinates yet */}
           {!data.latitude && (
             <div className="mt-2">
               {!showManualCoords ? (
-                <button
-                  type="button"
-                  onClick={() => setShowManualCoords(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-                >
-                  <PenLine className="h-3 w-3" />
-                  Enter coordinates manually
-                </button>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowMapPicker(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  >
+                    <Map className="h-3.5 w-3.5" />
+                    Pin on Map
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualCoords(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    <PenLine className="h-3 w-3" />
+                    Enter coordinates manually
+                  </button>
+                </div>
               ) : (
                 <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
                   <p className="text-xs font-bold text-indigo-700 mb-3">
@@ -453,6 +523,16 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
           helper="Note any nearby fire hazards, chemical plants, fuel stations, or flood-prone areas"
         />
       </div>
+
+      {/* Map Picker Modal */}
+      {showMapPicker && (
+        <MapPicker
+          initialLat={data.latitude ? parseFloat(data.latitude) : undefined}
+          initialLng={data.longitude ? parseFloat(data.longitude) : undefined}
+          onConfirm={handleMapConfirm}
+          onClose={() => setShowMapPicker(false)}
+        />
+      )}
     </div>
   );
 }
