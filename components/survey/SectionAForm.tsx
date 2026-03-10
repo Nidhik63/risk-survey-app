@@ -5,7 +5,7 @@ import type { SectionA } from "@/lib/survey-types";
 import TextField from "@/components/fields/TextField";
 import SelectField from "@/components/fields/SelectField";
 import TextAreaField from "@/components/fields/TextAreaField";
-import { Building2, MapPin, Loader2, Droplets, PenLine } from "lucide-react";
+import { Building2, MapPin, Loader2, Droplets, PenLine, Flame } from "lucide-react";
 
 interface FireStationResult {
   name: string;
@@ -46,12 +46,16 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
   const [showManualCoords, setShowManualCoords] = useState(false);
   const [manualLat, setManualLat] = useState("");
   const [manualLng, setManualLng] = useState("");
+  const [fireStationInfo, setFireStationInfo] = useState<string>("");
+  const [fireStationNote, setFireStationNote] = useState<string>("");
 
   // Auto-lookup from address
   const handleGeocode = async () => {
     if (!data.address.trim()) return;
     setGeocoding(true);
     setGeocodeError("");
+    setFireStationInfo("");
+    setFireStationNote("");
 
     try {
       const response = await fetch("/api/geocode", {
@@ -80,6 +84,11 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
       // Auto-fill fire brigade in Section C
       if (result.nearestFireStation && onFireBrigadeFound) {
         onFireBrigadeFound(result.nearestFireStation);
+        setFireStationInfo(
+          `${result.nearestFireStation.name} — ${result.nearestFireStation.distance} km (${result.nearestFireStation.category})`
+        );
+      } else {
+        setFireStationNote(result.fireStationNote || "Fire station lookup did not return results.");
       }
     } catch {
       setGeocodeError("Failed to lookup coordinates. You can enter them manually.");
@@ -89,11 +98,13 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
     }
   };
 
-  // Manual coordinates → flood risk lookup
+  // Manual coordinates → flood risk + fire station lookup
   const handleManualCoords = async () => {
     if (!manualLat.trim() || !manualLng.trim()) return;
     setGeocoding(true);
     setGeocodeError("");
+    setFireStationInfo("");
+    setFireStationNote("");
 
     try {
       const response = await fetch("/api/geocode", {
@@ -121,6 +132,11 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
       // Auto-fill fire brigade in Section C
       if (result.nearestFireStation && onFireBrigadeFound) {
         onFireBrigadeFound(result.nearestFireStation);
+        setFireStationInfo(
+          `${result.nearestFireStation.name} — ${result.nearestFireStation.distance} km (${result.nearestFireStation.category})`
+        );
+      } else {
+        setFireStationNote(result.fireStationNote || "Fire station lookup did not return results.");
       }
     } catch {
       setGeocodeError("Failed to assess flood risk. Please try again.");
@@ -292,6 +308,16 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
                 </div>
               )}
 
+              {/* Fire station badge — shows when auto-detected */}
+              {fireStationInfo && (
+                <div className="flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
+                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                  <span className="text-xs font-bold text-orange-700">
+                    🚒 {fireStationInfo}
+                  </span>
+                </div>
+              )}
+
               {/* Reset button to re-enter coordinates */}
               <button
                 type="button"
@@ -306,6 +332,8 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
                   setShowManualCoords(false);
                   setManualLat("");
                   setManualLng("");
+                  setFireStationInfo("");
+                  setFireStationNote("");
                 }}
                 className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors underline"
               >
@@ -317,6 +345,13 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
           {data.floodRiskDetails && (
             <p className="mt-2 text-xs text-gray-500 leading-relaxed">
               {data.floodRiskDetails}
+            </p>
+          )}
+
+          {/* Fire station note — shows if lookup failed or found nothing */}
+          {fireStationNote && !fireStationInfo && data.latitude && (
+            <p className="mt-1 text-xs text-amber-600">
+              ⚠ {fireStationNote} You can select the nearest fire brigade manually in Section C.
             </p>
           )}
         </div>

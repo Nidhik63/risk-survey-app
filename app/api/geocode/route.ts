@@ -37,87 +37,116 @@ async function geocodeAddress(address: string): Promise<GeocodingResult | null> 
 }
 
 // Find nearest fire station via Overpass API (OpenStreetMap, free, no API key)
+// Uses multiple endpoints as fallback since the public server can be unreliable
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+];
+
 async function findNearestFireStation(
   lat: string,
   lng: string
 ): Promise<{ name: string; distance: number; category: string } | null> {
-  try {
-    // Search within 20km radius for fire stations
-    const query = `
-      [out:json][timeout:10];
-      (
-        node["amenity"="fire_station"](around:20000,${lat},${lng});
-        way["amenity"="fire_station"](around:20000,${lat},${lng});
-      );
-      out center body 5;
-    `;
+  // Search within 50km radius for fire stations (nodes, ways, and relations)
+  const query = `
+    [out:json][timeout:25];
+    (
+      node["amenity"="fire_station"](around:50000,${lat},${lng});
+      way["amenity"="fire_station"](around:50000,${lat},${lng});
+      relation["amenity"="fire_station"](around:50000,${lat},${lng});
+    );
+    out body center 10;
+  `;
 
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `data=${encodeURIComponent(query)}`,
-    });
+  // Try each Overpass endpoint until one succeeds
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
 
-    if (!response.ok) return null;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
 
-    const data = await response.json();
-    const elements = data?.elements || [];
+      clearTimeout(timeout);
 
-    if (elements.length === 0) return null;
-
-    const latNum = parseFloat(lat);
-    const lngNum = parseFloat(lng);
-
-    // Calculate distance to each station and find the closest
-    let closest: { name: string; distance: number } | null = null;
-
-    for (const el of elements) {
-      const sLat = el.lat ?? el.center?.lat;
-      const sLng = el.lon ?? el.center?.lon;
-      if (!sLat || !sLng) continue;
-
-      // Haversine distance in km
-      const R = 6371;
-      const dLat = ((sLat - latNum) * Math.PI) / 180;
-      const dLon = ((sLng - lngNum) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((latNum * Math.PI) / 180) *
-          Math.cos((sLat * Math.PI) / 180) *
-          Math.sin(dLon / 2) ** 2;
-      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-      const name =
-        el.tags?.name ||
-        el.tags?.["name:en"] ||
-        el.tags?.operator ||
-        "Fire Station";
-
-      if (!closest || dist < closest.distance) {
-        closest = { name, distance: dist };
+      if (!response.ok) {
+        console.warn(`Overpass ${endpoint} returned ${response.status}`);
+        continue;
       }
+
+      const data = await response.json();
+      const elements = data?.elements || [];
+
+      if (elements.length === 0) {
+        console.log(`Overpass: No fire stations found within 50km of ${lat},${lng}`);
+        return null;
+      }
+
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+
+      // Calculate distance to each station and find the closest
+      let closest: { name: string; distance: number } | null = null;
+
+      for (const el of elements) {
+        const sLat = el.lat ?? el.center?.lat;
+        const sLng = el.lon ?? el.center?.lon;
+        if (!sLat || !sLng) continue;
+
+        // Haversine distance in km
+        const R = 6371;
+        const dLat = ((sLat - latNum) * Math.PI) / 180;
+        const dLon = ((sLng - lngNum) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((latNum * Math.PI) / 180) *
+            Math.cos((sLat * Math.PI) / 180) *
+            Math.sin(dLon / 2) ** 2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        const name =
+          el.tags?.name ||
+          el.tags?.["name:en"] ||
+          el.tags?.operator ||
+          "Fire Station";
+
+        if (!closest || dist < closest.distance) {
+          closest = { name, distance: dist };
+        }
+      }
+
+      if (!closest) return null;
+
+      // Map distance to the dropdown category
+      let category: string;
+      if (closest.distance <= 5) {
+        category = "Public - Within 5 km";
+      } else if (closest.distance <= 15) {
+        category = "Public - 5-15 km";
+      } else {
+        category = "Public - Over 15 km";
+      }
+
+      console.log(`Fire station found: ${closest.name} at ${closest.distance}km`);
+
+      return {
+        name: closest.name,
+        distance: Math.round(closest.distance * 10) / 10,
+        category,
+      };
+    } catch (err) {
+      console.warn(`Overpass ${endpoint} failed:`, err);
+      continue;
     }
-
-    if (!closest) return null;
-
-    // Map distance to the dropdown category
-    let category: string;
-    if (closest.distance <= 5) {
-      category = "Public - Within 5 km";
-    } else if (closest.distance <= 15) {
-      category = "Public - 5-15 km";
-    } else {
-      category = "Public - Over 15 km";
-    }
-
-    return {
-      name: closest.name,
-      distance: Math.round(closest.distance * 10) / 10,
-      category,
-    };
-  } catch {
-    return null;
   }
+
+  console.error("All Overpass endpoints failed for fire station lookup");
+  return null;
 }
 
 // Assess flood risk via Open-Meteo Flood API (free, no API key)
@@ -196,7 +225,7 @@ export async function POST(request: NextRequest) {
       lng?: string;
     };
 
-    // Mode 1: Manual coordinates provided — just assess flood risk
+    // Mode 1: Manual coordinates provided — just assess flood risk + fire station
     if (lat && lng) {
       const latNum = parseFloat(lat);
       const lngNum = parseFloat(lng);
@@ -210,10 +239,14 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      console.log(`Geocode: Manual coords ${lat}, ${lng} — looking up flood + fire station...`);
+
       const [flood, fireStation] = await Promise.all([
         assessFloodRisk(lat, lng),
         findNearestFireStation(lat, lng),
       ]);
+
+      console.log(`Geocode result: flood=${flood.riskLevel}, fireStation=${fireStation ? fireStation.name : "none found"}`);
 
       return NextResponse.json({
         lat,
@@ -222,6 +255,7 @@ export async function POST(request: NextRequest) {
         floodRiskLevel: flood.riskLevel,
         floodRiskDetails: flood.details,
         nearestFireStation: fireStation,
+        fireStationNote: fireStation ? null : "No fire station found within 50 km in OpenStreetMap data.",
       });
     }
 
@@ -233,7 +267,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Smart geocoding with fallback
+    // Exact address geocoding only — no fallback
     const geoResult = await geocodeAddress(address.trim());
 
     if (!geoResult) {
@@ -247,10 +281,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    console.log(`Geocode: Address → ${geoResult.lat}, ${geoResult.lng} — looking up flood + fire station...`);
+
     const [flood, fireStation] = await Promise.all([
       assessFloodRisk(geoResult.lat, geoResult.lng),
       findNearestFireStation(geoResult.lat, geoResult.lng),
     ]);
+
+    console.log(`Geocode result: flood=${flood.riskLevel}, fireStation=${fireStation ? fireStation.name : "none found"}`);
 
     return NextResponse.json({
       lat: geoResult.lat,
@@ -259,6 +297,7 @@ export async function POST(request: NextRequest) {
       floodRiskLevel: flood.riskLevel,
       floodRiskDetails: flood.details,
       nearestFireStation: fireStation,
+      fireStationNote: fireStation ? null : "No fire station found within 50 km in OpenStreetMap data.",
     });
   } catch (error) {
     console.error("Geocode error:", error);
