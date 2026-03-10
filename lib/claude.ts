@@ -206,7 +206,7 @@ export async function analyzeRiskImagesV2(
   const prompt = `You are a certified property risk engineer. Analyze the site photos AND checklist data to produce an RI Report as JSON.
 
 === CHECKLIST DATA ===
-A) General: Insured=${sectionA.insuredName}, Addr=${sectionA.address}, Contact=${sectionA.contactPerson}(${sectionA.contactPhone}), Date=${sectionA.dateOfSurvey}, Surveyor=${sectionA.surveyorName}, Occupancy=${sectionA.occupancy === "Other" ? sectionA.occupancyOther : sectionA.occupancy}(${sectionA.occupancyDetails}), Age=${sectionA.buildingAge}yr, Area=${sectionA.totalArea}sqm, Floors=${sectionA.numberOfFloors}(B:${sectionA.numberOfBasements}), Exposures=${sectionA.surroundingExposures}
+A) General: Insured=${sectionA.insuredName}, Addr=${sectionA.address}, Contact=${sectionA.contactPerson}(${sectionA.contactPhone}), Date=${sectionA.dateOfSurvey}, Surveyor=${sectionA.surveyorName}, Occupancy=${sectionA.occupancy === "Other" ? sectionA.occupancyOther : sectionA.occupancy}(${sectionA.occupancyDetails}), Age=${sectionA.buildingAge}yr, PlotArea=${sectionA.plotArea}sqm, BuiltArea=${sectionA.constructedArea}sqm, GEO=${sectionA.latitude},${sectionA.longitude}, FloodRisk=${sectionA.floodRiskLevel || "Unknown"}, Floors=${sectionA.numberOfFloors}(B:${sectionA.numberOfBasements}), Exposures=${sectionA.surroundingExposures}
 B) Construction: Frame=${sectionB.structuralFrame}, Walls=${sectionB.externalWalls}, Roof=${sectionB.roofStructure}/${sectionB.roofCovering}, Floor=${sectionB.floorType}, Ceiling=${sectionB.ceilingType}, Insulation=${sectionB.insulationType}, Mezzanine=${sectionB.mezzanineFloors}, Condition=${sectionB.buildingCondition}, Concerns=${sectionB.structuralConcerns}
 C) Fire: Detection=${sectionC.fireDetectionSystem}(${sectionC.detectionType}), Sprinklers=${sectionC.sprinklerSystem}(${sectionC.sprinklerType},${sectionC.sprinklerCoverage}), Extinguishers=${sectionC.fireExtinguishers}(${sectionC.extinguisherTypes}), HoseReels=${sectionC.fireHoseReels}, Hydrants=${sectionC.externalHydrants}, AlarmPanel=${sectionC.fireAlarmPanel}, Exits=${sectionC.emergencyExits}, Brigade=${sectionC.fireBrigade}, LastDrill=${sectionC.lastFireDrillDate}, HotWork=${sectionC.hotWorkProcedures}
 D) EHS: HazMat=${sectionD.hazardousStorage}(${sectionD.hazardousMaterials}), Storage=${sectionD.storageArrangement}, Electrical=${sectionD.electricalInstallation}(maint:${sectionD.electricalMaintDate}), Lightning=${sectionD.lightningProtection}, EmergLight=${sectionD.emergencyLighting}, Smoking=${sectionD.smokingPolicy}, FlammLiquid=${sectionD.flammableLiquidStorage}, LPG=${sectionD.lpgStorage}, Dust=${sectionD.dustHazard}, Process=${sectionD.processHazards}
@@ -389,7 +389,8 @@ You MUST respond with ONLY valid JSON (no markdown, no code blocks):
     "occupancy": "Warehouse|Manufacturing|Manufacturing + Warehouse|Manufacturing + Warehouse + Office|Office|Retail|Residential|Mixed Use|Industrial|Cold Storage|Food Processing|Chemical|Logistics|Other",
     "occupancyDetails": "description of what appears to be stored/manufactured",
     "buildingAge": "estimated age if possible, empty if not",
-    "totalArea": "estimated area in sqm if possible",
+    "plotArea": "estimated total plot/land area in sqm if possible",
+    "constructedArea": "estimated built-up/constructed area in sqm if possible",
     "numberOfFloors": "number visible",
     "numberOfBasements": "",
     "surroundingExposures": "describe visible surroundings"

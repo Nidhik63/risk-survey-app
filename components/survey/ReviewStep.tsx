@@ -83,7 +83,10 @@ export default function ReviewStep({ data, onGoToStep }: ReviewStepProps) {
     { label: "Survey Date", value: data.sectionA.dateOfSurvey },
     { label: "Surveyor", value: data.sectionA.surveyorName },
     { label: "Occupancy", value: data.sectionA.occupancy },
-    { label: "Area", value: data.sectionA.totalArea ? `${data.sectionA.totalArea} sqm` : "" },
+    { label: "Plot Area", value: data.sectionA.plotArea ? `${data.sectionA.plotArea} sqm` : "" },
+    { label: "Constructed Area", value: data.sectionA.constructedArea ? `${data.sectionA.constructedArea} sqm` : "" },
+    { label: "GEO Code", value: data.sectionA.latitude && data.sectionA.longitude ? `${parseFloat(data.sectionA.latitude).toFixed(4)}, ${parseFloat(data.sectionA.longitude).toFixed(4)}` : "" },
+    { label: "Flood Risk", value: data.sectionA.floodRiskLevel || "" },
     { label: "Floors", value: data.sectionA.numberOfFloors },
     { label: "Building Age", value: data.sectionA.buildingAge ? `${data.sectionA.buildingAge} yrs` : "" },
   ];

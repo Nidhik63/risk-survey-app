@@ -37,7 +37,10 @@ export default function PropertySummary({ surveyData }: PropertySummaryProps) {
         <DataCard label="Insured" value={sectionA.insuredName} />
         <DataCard label="Address" value={sectionA.address} />
         <DataCard label="Occupancy" value={`${sectionA.occupancy}${sectionA.occupancyDetails ? ` \u2014 ${sectionA.occupancyDetails}` : ""}`} />
-        <DataCard label="Total Area" value={sectionA.totalArea ? `${sectionA.totalArea} sqm` : ""} />
+        <DataCard label="Plot Area" value={sectionA.plotArea ? `${sectionA.plotArea} sqm` : ""} />
+        <DataCard label="Constructed Area" value={sectionA.constructedArea ? `${sectionA.constructedArea} sqm` : ""} />
+        <DataCard label="GEO Code" value={sectionA.latitude && sectionA.longitude ? `${parseFloat(sectionA.latitude).toFixed(4)}, ${parseFloat(sectionA.longitude).toFixed(4)}` : ""} />
+        <DataCard label="Flood Risk" value={sectionA.floodRiskLevel || ""} />
         <DataCard label="Building Age" value={sectionA.buildingAge ? `${sectionA.buildingAge} years` : ""} />
         <DataCard label="Floors" value={sectionA.numberOfFloors} />
         <DataCard label="Frame" value={sectionB.structuralFrame} />

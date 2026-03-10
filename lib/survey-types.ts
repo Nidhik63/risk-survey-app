@@ -14,10 +14,16 @@ export interface SectionA {
   occupancyOther: string;
   occupancyDetails: string;
   buildingAge: string;
-  totalArea: string;
+  plotArea: string;
+  constructedArea: string;
   numberOfFloors: string;
   numberOfBasements: string;
   surroundingExposures: string;
+  // Geocode + Flood fields (auto-populated)
+  latitude: string;
+  longitude: string;
+  floodRiskLevel: string;
+  floodRiskDetails: string;
 }
 
 // --- Section B: Construction Details ---

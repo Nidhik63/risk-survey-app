@@ -82,8 +82,10 @@ export default function CoverPage({ surveyData, reportRef }: CoverPageProps) {
           {[
             { label: "Ref", value: reportRef },
             { label: "Occupancy", value: sectionA.occupancy || "\u2014" },
-            { label: "Area", value: sectionA.totalArea ? `${sectionA.totalArea} sqm` : "\u2014" },
+            { label: "Plot Area", value: sectionA.plotArea ? `${sectionA.plotArea} sqm` : "\u2014" },
+            { label: "Built Area", value: sectionA.constructedArea ? `${sectionA.constructedArea} sqm` : "\u2014" },
             { label: "Floors", value: sectionA.numberOfFloors || "\u2014" },
+            { label: "Flood Risk", value: sectionA.floodRiskLevel || "\u2014" },
           ].map((stat, i) => (
             <div key={stat.label} className="flex items-center gap-3">
               {i > 0 && <div className="h-8 w-[1px] bg-white/10 hidden sm:block" />}

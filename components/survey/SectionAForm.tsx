@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import type { SectionA } from "@/lib/survey-types";
 import TextField from "@/components/fields/TextField";
 import SelectField from "@/components/fields/SelectField";
 import TextAreaField from "@/components/fields/TextAreaField";
-import { Building2 } from "lucide-react";
+import { Building2, MapPin, Loader2, Droplets } from "lucide-react";
 
 interface SectionAFormProps {
   data: SectionA;
@@ -32,6 +33,53 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
   const update = (field: keyof SectionA, value: string) => {
     onChange({ ...data, [field]: value });
   };
+
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState("");
+
+  const handleGeocode = async () => {
+    if (!data.address.trim()) return;
+    setGeocoding(true);
+    setGeocodeError("");
+
+    try {
+      const response = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: data.address }),
+      });
+
+      const result = await response.json();
+
+      if (result.error && !result.lat) {
+        setGeocodeError(result.error);
+        return;
+      }
+
+      onChange({
+        ...data,
+        latitude: result.lat || "",
+        longitude: result.lng || "",
+        floodRiskLevel: result.floodRiskLevel || "",
+        floodRiskDetails: result.floodRiskDetails || "",
+      });
+    } catch {
+      setGeocodeError("Failed to lookup coordinates. Please try again.");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const floodColor =
+    data.floodRiskLevel === "Low"
+      ? "bg-green-50 border-green-200 text-green-700"
+      : data.floodRiskLevel === "Moderate"
+      ? "bg-yellow-50 border-yellow-200 text-yellow-700"
+      : data.floodRiskLevel === "High"
+      ? "bg-orange-50 border-orange-200 text-orange-700"
+      : data.floodRiskLevel === "Very High"
+      ? "bg-red-50 border-red-200 text-red-700"
+      : "";
 
   return (
     <div className="animate-fade-in-up">
@@ -67,13 +115,67 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
           />
         </div>
 
-        <TextField
-          label="Property Address"
-          value={data.address}
-          onChange={(v) => update("address", v)}
-          placeholder="Full address of the insured property"
-          required
-        />
+        {/* Address + Geocode Lookup */}
+        <div>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <TextField
+                label="Property Address"
+                value={data.address}
+                onChange={(v) => update("address", v)}
+                placeholder="Full address of the insured property"
+                required
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleGeocode}
+              disabled={geocoding || !data.address.trim()}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            >
+              {geocoding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4" />
+              )}
+              {geocoding ? "Looking up..." : "Get GEO Code"}
+            </button>
+          </div>
+
+          {geocodeError && (
+            <p className="mt-1.5 text-xs text-amber-600">{geocodeError}</p>
+          )}
+
+          {/* Coordinates + Flood Risk badges */}
+          {data.latitude && data.longitude && (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2">
+                <MapPin className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="text-xs font-semibold text-indigo-700">
+                  {parseFloat(data.latitude).toFixed(6)},{" "}
+                  {parseFloat(data.longitude).toFixed(6)}
+                </span>
+              </div>
+
+              {data.floodRiskLevel && (
+                <div
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${floodColor}`}
+                >
+                  <Droplets className="h-3.5 w-3.5" />
+                  <span className="text-xs font-bold">
+                    Flood Risk: {data.floodRiskLevel}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {data.floodRiskDetails && (
+            <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+              {data.floodRiskDetails}
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <TextField
@@ -125,7 +227,7 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
           />
         )}
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
           <TextField
             label="Building Age (Years)"
             value={data.buildingAge}
@@ -134,9 +236,16 @@ export default function SectionAForm({ data, onChange }: SectionAFormProps) {
             type="number"
           />
           <TextField
-            label="Total Area (sq m)"
-            value={data.totalArea}
-            onChange={(v) => update("totalArea", v)}
+            label="Plot Area (sq m)"
+            value={data.plotArea}
+            onChange={(v) => update("plotArea", v)}
+            placeholder="e.g. 10000"
+            type="number"
+          />
+          <TextField
+            label="Constructed Area (sq m)"
+            value={data.constructedArea}
+            onChange={(v) => update("constructedArea", v)}
             placeholder="e.g. 5000"
             type="number"
           />

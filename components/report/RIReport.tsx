@@ -84,12 +84,13 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
                 {analysis.executiveSummary}
               </p>
               {/* Quick stats */}
-              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {[
                   { label: "Occupancy", value: surveyData.sectionA.occupancy || "\u2014" },
-                  { label: "Area", value: surveyData.sectionA.totalArea ? `${surveyData.sectionA.totalArea} sqm` : "\u2014" },
+                  { label: "Plot Area", value: surveyData.sectionA.plotArea ? `${surveyData.sectionA.plotArea} sqm` : "\u2014" },
+                  { label: "Built Area", value: surveyData.sectionA.constructedArea ? `${surveyData.sectionA.constructedArea} sqm` : "\u2014" },
                   { label: "Floors", value: surveyData.sectionA.numberOfFloors || "\u2014" },
-                  { label: "Age", value: surveyData.sectionA.buildingAge ? `${surveyData.sectionA.buildingAge} yrs` : "\u2014" },
+                  { label: "Flood Risk", value: surveyData.sectionA.floodRiskLevel || "\u2014" },
                 ].map((stat) => (
                   <div key={stat.label} className="rounded-2xl bg-gray-50 border border-gray-100 p-4 text-center">
                     <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">{stat.label}</p>

@@ -18,10 +18,15 @@ export const defaultSectionA: SectionA = {
   occupancyOther: "",
   occupancyDetails: "",
   buildingAge: "",
-  totalArea: "",
+  plotArea: "",
+  constructedArea: "",
   numberOfFloors: "",
   numberOfBasements: "",
   surroundingExposures: "",
+  latitude: "",
+  longitude: "",
+  floodRiskLevel: "",
+  floodRiskDetails: "",
 };
 
 export const defaultSectionB: SectionB = {

@@ -40,6 +40,19 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        // Migrate old totalArea → plotArea for backward compatibility
+        if (parsed.sectionA) {
+          if (parsed.sectionA.totalArea && !parsed.sectionA.plotArea) {
+            parsed.sectionA.plotArea = parsed.sectionA.totalArea;
+          }
+          delete parsed.sectionA.totalArea;
+          parsed.sectionA.plotArea = parsed.sectionA.plotArea || "";
+          parsed.sectionA.constructedArea = parsed.sectionA.constructedArea || "";
+          parsed.sectionA.latitude = parsed.sectionA.latitude || "";
+          parsed.sectionA.longitude = parsed.sectionA.longitude || "";
+          parsed.sectionA.floodRiskLevel = parsed.sectionA.floodRiskLevel || "";
+          parsed.sectionA.floodRiskDetails = parsed.sectionA.floodRiskDetails || "";
+        }
         setData((prev) => ({
           ...prev,
           sectionA: parsed.sectionA || prev.sectionA,

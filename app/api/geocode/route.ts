@@ -1,0 +1,148 @@
+import { NextRequest, NextResponse } from "next/server";
+
+/* ── Geocode address → lat/lng, then assess flood risk ── */
+
+interface GeocodingResult {
+  lat: string;
+  lng: string;
+  displayName: string;
+}
+
+// Step 1: Geocode address via OpenStreetMap Nominatim (free, no API key)
+async function geocodeAddress(address: string): Promise<GeocodingResult | null> {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", address);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "1");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      "User-Agent": "RiskLens-SurveyApp/1.0",
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const results = await response.json();
+  if (!results || results.length === 0) return null;
+
+  return {
+    lat: results[0].lat,
+    lng: results[0].lon,
+    displayName: results[0].display_name,
+  };
+}
+
+// Step 2: Assess flood risk via Open-Meteo Flood API (free, no API key)
+async function assessFloodRisk(
+  lat: string,
+  lng: string
+): Promise<{ riskLevel: string; details: string }> {
+  try {
+    const url = new URL("https://flood-api.open-meteo.com/v1/flood");
+    url.searchParams.set("latitude", lat);
+    url.searchParams.set("longitude", lng);
+    url.searchParams.set("daily", "river_discharge");
+    url.searchParams.set("forecast_days", "7");
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      return {
+        riskLevel: "",
+        details: "Flood data unavailable for this location.",
+      };
+    }
+
+    const data = await response.json();
+    const discharges: number[] = data?.daily?.river_discharge || [];
+
+    // Filter out nulls
+    const validDischarges = discharges.filter(
+      (d) => d !== null && d !== undefined
+    );
+
+    if (validDischarges.length === 0) {
+      return {
+        riskLevel: "Low",
+        details:
+          "No significant river system detected near this location. Flood risk from rivers is low.",
+      };
+    }
+
+    const maxDischarge = Math.max(...validDischarges);
+
+    // Classify by peak river discharge (m³/s)
+    if (maxDischarge < 100) {
+      return {
+        riskLevel: "Low",
+        details: `Low flood risk. Peak river discharge: ${maxDischarge.toFixed(1)} m\u00B3/s. No significant flooding expected.`,
+      };
+    } else if (maxDischarge < 500) {
+      return {
+        riskLevel: "Moderate",
+        details: `Moderate flood risk. Peak river discharge: ${maxDischarge.toFixed(1)} m\u00B3/s. Minor flooding possible in low-lying areas near rivers.`,
+      };
+    } else if (maxDischarge < 1500) {
+      return {
+        riskLevel: "High",
+        details: `High flood risk. Peak river discharge: ${maxDischarge.toFixed(1)} m\u00B3/s. Significant flooding possible. Flood mitigation review recommended.`,
+      };
+    } else {
+      return {
+        riskLevel: "Very High",
+        details: `Very high flood risk. Peak river discharge: ${maxDischarge.toFixed(1)} m\u00B3/s. Severe flooding likely. Immediate flood risk mitigation required.`,
+      };
+    }
+  } catch {
+    return {
+      riskLevel: "",
+      details: "Could not assess flood risk. Service temporarily unavailable.",
+    };
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { address } = body as { address: string };
+
+    if (!address || !address.trim()) {
+      return NextResponse.json(
+        { error: "Address is required" },
+        { status: 400 }
+      );
+    }
+
+    // Step 1: Geocode
+    const geoResult = await geocodeAddress(address.trim());
+
+    if (!geoResult) {
+      return NextResponse.json({
+        error:
+          "Could not find coordinates for this address. Please check the address and try again.",
+        lat: "",
+        lng: "",
+        floodRiskLevel: "",
+        floodRiskDetails: "",
+      });
+    }
+
+    // Step 2: Flood assessment
+    const flood = await assessFloodRisk(geoResult.lat, geoResult.lng);
+
+    return NextResponse.json({
+      lat: geoResult.lat,
+      lng: geoResult.lng,
+      displayName: geoResult.displayName,
+      floodRiskLevel: flood.riskLevel,
+      floodRiskDetails: flood.details,
+    });
+  } catch (error) {
+    console.error("Geocode error:", error);
+    return NextResponse.json(
+      { error: "Geocoding failed. Please try again." },
+      { status: 500 }
+    );
+  }
+}
