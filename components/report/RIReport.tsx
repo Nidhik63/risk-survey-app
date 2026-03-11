@@ -1,6 +1,7 @@
 "use client";
 
 import type { RIReportAnalysis, SurveyDataV2 } from "@/lib/survey-types";
+import { exportReportToDocx } from "@/lib/docx-export";
 import ReportToolbar from "./ReportToolbar";
 import CoverPage from "./CoverPage";
 import TableOfContents from "./TableOfContents";
@@ -25,6 +26,11 @@ interface RIReportProps {
 export default function RIReport({ analysis, surveyData, onBack }: RIReportProps) {
   const reportRef = `NTRU-${Date.now().toString(36).toUpperCase()}`;
   const filename = `NTRU-RI-Report-${(surveyData.sectionA.address || "survey").replace(/[^a-zA-Z0-9]/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
+  const wordFilename = filename.replace(/\.pdf$/, ".docx");
+
+  const handleExportWord = async () => {
+    await exportReportToDocx(analysis, surveyData, reportRef, wordFilename);
+  };
 
   const tocItems = [
     { id: "section-summary", label: "Executive Summary" },
@@ -58,6 +64,7 @@ export default function RIReport({ analysis, surveyData, onBack }: RIReportProps
         shareText={`Property risk inspection for ${surveyData.sectionA.address}. Overall risk: ${analysis.overallRiskScore}/100 (${analysis.overallRiskGrade}).`}
         onBack={onBack}
         filename={filename}
+        onExportWord={handleExportWord}
       />
 
       <div id="ri-report" className="mx-auto max-w-5xl px-4 py-10 space-y-10">

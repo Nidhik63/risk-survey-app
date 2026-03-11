@@ -203,16 +203,22 @@ export async function analyzeRiskImagesV2(
     );
   });
 
-  const prompt = `You are a certified property risk engineer. Analyze the site photos AND checklist data to produce an RI Report as JSON.
+  const prompt = `You are a certified property risk engineer. Produce an RI Report as JSON using the checklist data AND site photos.
 
-=== CHECKLIST DATA ===
+CRITICAL RULES:
+1. The SURVEYOR'S CHECKLIST DATA is the PRIMARY source of truth. The surveyor physically inspected the property and filled in occupancy, materials stored, building type, and all other fields. Always use the surveyor's entries as the authoritative classification.
+2. Photos are SUPPLEMENTARY EVIDENCE that support and enrich the report. Use photos to add detail, verify conditions, and identify additional observations — but NEVER let photo observations override the surveyor's stated occupancy, main materials, or building classification.
+3. If you see items in photos (e.g., drums of paint in a corner) that differ from the surveyor's stated primary occupancy/materials, note them as secondary or incidental storage in findings — but the main occupancy classification MUST match what the surveyor entered.
+4. The occupancy field in the checklist is the definitive occupancy for the report. Do not reclassify it based on what you see in photos.
+
+=== CHECKLIST DATA (PRIMARY SOURCE — SURVEYOR VERIFIED) ===
 A) General: Insured=${sectionA.insuredName}, Addr=${sectionA.address}, Contact=${sectionA.contactPerson}(${sectionA.contactPhone}), Date=${sectionA.dateOfSurvey}, Surveyor=${sectionA.surveyorName}, Occupancy=${sectionA.occupancy === "Other" ? sectionA.occupancyOther : sectionA.occupancy}(${sectionA.occupancyDetails}), Age=${sectionA.buildingAge}yr, PlotArea=${sectionA.plotArea}sqm, BuiltArea=${sectionA.constructedArea}sqm, GEO=${sectionA.latitude},${sectionA.longitude}, FloodRisk=${sectionA.floodRiskLevel || "Unknown"}, Floors=${sectionA.numberOfFloors}(B:${sectionA.numberOfBasements}), Exposures=${sectionA.surroundingExposures}
 B) Construction: Frame=${sectionB.structuralFrame}, Walls=${sectionB.externalWalls}, Roof=${sectionB.roofStructure}/${sectionB.roofCovering}, Floor=${sectionB.floorType}, Ceiling=${sectionB.ceilingType}, Insulation=${sectionB.insulationType}, Mezzanine=${sectionB.mezzanineFloors}, Condition=${sectionB.buildingCondition}, Concerns=${sectionB.structuralConcerns}
 C) Fire: Detection=${sectionC.fireDetectionSystem}(${sectionC.detectionType}), Sprinklers=${sectionC.sprinklerSystem}(${sectionC.sprinklerType},${sectionC.sprinklerCoverage}), Extinguishers=${sectionC.fireExtinguishers}(${sectionC.extinguisherTypes}), HoseReels=${sectionC.fireHoseReels}, Hydrants=${sectionC.externalHydrants}, AlarmPanel=${sectionC.fireAlarmPanel}, Exits=${sectionC.emergencyExits}, Brigade=${sectionC.fireBrigade}, LastDrill=${sectionC.lastFireDrillDate}, HotWork=${sectionC.hotWorkProcedures}
 D) EHS: HazMat=${sectionD.hazardousStorage}(${sectionD.hazardousMaterials}), Storage=${sectionD.storageArrangement}, Electrical=${sectionD.electricalInstallation}(maint:${sectionD.electricalMaintDate}), Lightning=${sectionD.lightningProtection}, EmergLight=${sectionD.emergencyLighting}, Smoking=${sectionD.smokingPolicy}, FlammLiquid=${sectionD.flammableLiquidStorage}, LPG=${sectionD.lpgStorage}, Dust=${sectionD.dustHazard}, Process=${sectionD.processHazards}
 E) Housekeeping: HK=${sectionE.generalHousekeeping}, Waste=${sectionE.wasteManagement}, Maint=${sectionE.maintenanceProgram}, RoofMaint=${sectionE.roofMaintenance}, ElecMaint=${sectionE.electricalMaintenance}, FireMaint=${sectionE.fireSafetyMaintenance}, Security=${sectionE.securityArrangements}, Fence=${sectionE.perimeterFencing}, Access=${sectionE.accessControl}, Flood=${sectionE.floodExposure}, NatCat=${sectionE.naturalCatExposure}, BCP=${sectionE.businessContinuityPlan}
 
-=== PHOTOS ===
+=== PHOTOS (SUPPLEMENTARY EVIDENCE — do NOT override checklist data) ===
 ${photoDescriptions.length > 0 ? photoDescriptions.join("; ") : "None"}
 
 === OUTPUT FORMAT ===
@@ -243,7 +249,8 @@ REQUIREMENTS:
 - 5 sections (A through E), each with 1-2 findings and 1 positive
 - 5 recommendations sorted by priority
 - 8 compliance items covering: Fire Detection, Sprinklers, Extinguishers, Exits, Electrical, HazMat, Access Control, BCP
-- Be concise but professional. Reference actual checklist values and photo observations.`;
+- Be concise but professional. Reference actual checklist values and photo observations.
+- IMPORTANT: The occupancy/materials classification in the executive summary and Section A MUST match the surveyor's checklist entry (Occupancy field above). If photos show additional materials not listed by the surveyor, mention them as secondary/incidental observations in findings — never as the primary classification.`;
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",

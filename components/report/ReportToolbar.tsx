@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, ArrowLeft, Printer, Share2, Shield } from "lucide-react";
+import { Download, ArrowLeft, Printer, Share2, Shield, FileText } from "lucide-react";
 import { exportReportToPDF, printReport, shareReport } from "@/lib/pdf-export";
 
 interface ReportToolbarProps {
@@ -10,6 +10,7 @@ interface ReportToolbarProps {
   shareText: string;
   onBack: () => void;
   filename: string;
+  onExportWord?: () => Promise<void>;
 }
 
 export default function ReportToolbar({
@@ -18,8 +19,10 @@ export default function ReportToolbar({
   shareText,
   onBack,
   filename,
+  onExportWord,
 }: ReportToolbarProps) {
   const [exporting, setExporting] = useState(false);
+  const [exportingWord, setExportingWord] = useState(false);
   const [pdfFailed, setPdfFailed] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
@@ -37,6 +40,18 @@ export default function ReportToolbar({
       setPdfFailed(true);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleWordExport = async () => {
+    if (!onExportWord) return;
+    setExportingWord(true);
+    try {
+      await onExportWord();
+    } catch (err) {
+      console.error("Word export failed:", err);
+    } finally {
+      setExportingWord(false);
     }
   };
 
@@ -78,13 +93,23 @@ export default function ReportToolbar({
             <Printer className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Print</span>
           </button>
+          {onExportWord && (
+            <button
+              onClick={handleWordExport}
+              disabled={exportingWord}
+              className="flex items-center gap-1.5 rounded-xl border border-[#3D1556] bg-white px-3 py-2 text-xs font-bold text-[#3D1556] transition-all hover:bg-purple-50 disabled:opacity-50"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {exportingWord ? "Generating..." : "Word"}
+            </button>
+          )}
           <button
             onClick={handleExport}
             disabled={exporting}
             className="flex items-center gap-1.5 rounded-xl bg-[#3D1556] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#5B2D8E] disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
-            {exporting ? "Generating..." : "Export PDF"}
+            {exporting ? "Generating..." : "PDF"}
           </button>
         </div>
       </div>
