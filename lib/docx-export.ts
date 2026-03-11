@@ -489,7 +489,20 @@ export async function exportReportToDocx(
             shading: { type: ShadingType.SOLID, color: GRAY_LIGHT, fill: GRAY_LIGHT },
             children: [
               new TextRun({
-                text: "This Risk Inspection Report is generated using AI-powered image analysis and surveyor input data. It should be used as a supplementary tool alongside professional on-site inspection. All findings and recommendations should be verified by a qualified risk engineer before underwriting decisions are made.",
+                text: "This Risk Inspection Report has been prepared on a provisional basis using AI-powered image analysis and surveyor-provided input data. The findings, observations, risk scores, and recommendations contained herein are indicative only and do not constitute a formal risk assessment, professional survey opinion, or underwriting advice of any kind.",
+                size: 16,
+                color: GRAY,
+                font: "Calibri",
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 80 },
+            shading: { type: ShadingType.SOLID, color: GRAY_LIGHT, fill: GRAY_LIGHT },
+            children: [
+              new TextRun({
+                text: "NTRU / NTRU RiskLens, its officers, employees, and technology partners expressly disclaim all liability for any loss, damage, or consequence arising directly or indirectly from reliance on the contents of this report. The information herein may be incomplete, subject to change, and has not been independently verified.",
                 size: 16,
                 color: GRAY,
                 font: "Calibri",
