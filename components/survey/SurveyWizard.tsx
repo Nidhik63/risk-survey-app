@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Download, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
 import { defaultSurveyData } from "@/lib/survey-defaults";
+import { useRole } from "@/lib/role-context";
 import StepIndicator from "./StepIndicator";
 import SectionAForm from "./SectionAForm";
 import SectionBForm from "./SectionBForm";
@@ -16,11 +17,13 @@ import ReviewStep from "./ReviewStep";
 
 interface SurveyWizardProps {
   onSubmit: (data: SurveyDataV2) => void;
+  importedData?: SurveyDataV2 | null;
 }
 
 const STORAGE_KEY = "risklens-v2-survey";
 
-export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
+export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardProps) {
+  const role = useRole();
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<SurveyDataV2>(defaultSurveyData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -71,6 +74,16 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
     setResumeState("ready");
     setLoaded(true);
   }, []);
+
+  // Load imported data (from analyst JSON import)
+  useEffect(() => {
+    if (importedData) {
+      setData(importedData);
+      setResumeState("ready");
+      setLoaded(true);
+      setCurrentStep(6); // Jump to review step
+    }
+  }, [importedData]);
 
   // Load saved data into form state (called when user clicks "Continue")
   const loadSavedData = () => {
@@ -572,10 +585,23 @@ export default function SurveyWizard({ onSubmit }: SurveyWizardProps) {
             <button
               type="button"
               onClick={handleSubmit}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-emerald-700 hover:shadow-xl"
+              className={`flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:shadow-xl ${
+                role === "analyst"
+                  ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-[var(--primary)] hover:bg-[var(--primary-light)]"
+              }`}
             >
-              <Send className="h-4 w-4" />
-              Submit for Analysis
+              {role === "analyst" ? (
+                <>
+                  <Send className="h-4 w-4" />
+                  Submit for Analysis
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Download Survey Data
+                </>
+              )}
             </button>
           ) : (
             <button

@@ -2,6 +2,7 @@
 
 import type { SurveyDataV2 } from "@/lib/survey-types";
 import { SECTION_META } from "@/lib/survey-types";
+import { useRole } from "@/lib/role-context";
 import {
   ClipboardCheck,
   Edit3,
@@ -143,6 +144,7 @@ export default function ReviewStep({ data, onGoToStep }: ReviewStepProps) {
     count: data.photos.filter((p) => p.section === s.id).length,
   }));
   const generalPhotos = data.photos.filter((p) => p.section === "general").length;
+  const role = useRole();
 
   return (
     <div className="animate-fade-in-up">
@@ -152,10 +154,12 @@ export default function ReviewStep({ data, onGoToStep }: ReviewStepProps) {
         </div>
         <div>
           <h2 className="text-lg font-bold text-[var(--foreground)]">
-            Review & Submit
+            {role === "analyst" ? "Review & Submit" : "Review & Download"}
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            Review your inputs before submitting for AI analysis
+            {role === "analyst"
+              ? "Review your inputs before submitting for AI analysis"
+              : "Review your inputs before downloading the survey data"}
           </p>
         </div>
       </div>

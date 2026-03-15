@@ -11,6 +11,7 @@ import {
   Droplets,
   ClipboardList,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 
 function FeatureCard({
@@ -55,10 +56,10 @@ export default function Home() {
             </span>
           </div>
           <Link
-            href="/survey"
+            href="#get-started"
             className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-[var(--primary-light)] shadow-sm"
           >
-            Start Survey
+            Get Started
           </Link>
         </div>
       </nav>
@@ -85,11 +86,18 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href="/survey"
+                href="/survey?role=surveyor"
                 className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-7 py-3.5 text-base font-semibold text-[#1a0a2e] shadow-lg transition-all hover:bg-[var(--accent-light)] hover:shadow-xl"
               >
-                Start New Survey
-                <ArrowRight className="h-5 w-5" />
+                <ClipboardList className="h-5 w-5" />
+                Start Survey
+              </Link>
+              <Link
+                href="/survey?role=analyst"
+                className="flex items-center gap-2 rounded-xl bg-white/10 px-7 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20"
+              >
+                <Lock className="h-5 w-5" />
+                Analyst Login
               </Link>
             </div>
           </div>
@@ -202,22 +210,57 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="border-t border-[var(--border)]">
-        <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-          <h2 className="text-3xl font-bold text-[var(--foreground)]">
-            Ready to survey your next property?
-          </h2>
-          <p className="mt-3 text-[var(--muted)]">
-            Complete the checklist and get a professional RI report in minutes
-          </p>
-          <Link
-            href="/survey"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-[var(--primary-light)] hover:shadow-xl"
-          >
-            Start New Survey
-            <ArrowRight className="h-5 w-5" />
-          </Link>
+      {/* Get Started */}
+      <section id="get-started" className="border-t border-[var(--border)]">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-[var(--foreground)]">
+              Get Started
+            </h2>
+            <p className="mt-3 text-[var(--muted)]">
+              Choose your role to begin
+            </p>
+          </div>
+
+          <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
+            {/* Surveyor Card */}
+            <Link
+              href="/survey?role=surveyor"
+              className="group rounded-2xl border-2 border-[var(--border)] bg-[var(--surface)] p-8 text-left transition-all hover:border-[var(--primary)] hover:shadow-xl"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 transition-colors group-hover:bg-purple-200">
+                <ClipboardList className="h-6 w-6 text-[var(--primary)]" />
+              </div>
+              <h3 className="text-lg font-bold text-[var(--foreground)]">
+                Surveyor
+              </h3>
+              <p className="mt-2 text-sm text-[var(--muted)] leading-relaxed">
+                Capture site photos, fill the property checklist, and download your survey data for submission.
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-[var(--primary)]">
+                Start Survey <ArrowRight className="h-4 w-4" />
+              </div>
+            </Link>
+
+            {/* Analyst Card */}
+            <Link
+              href="/survey?role=analyst"
+              className="group rounded-2xl border-2 border-[var(--border)] bg-[var(--surface)] p-8 text-left transition-all hover:border-[var(--primary)] hover:shadow-xl"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 transition-colors group-hover:bg-purple-200">
+                <Shield className="h-6 w-6 text-[var(--primary)]" />
+              </div>
+              <h3 className="text-lg font-bold text-[var(--foreground)]">
+                Analyst
+              </h3>
+              <p className="mt-2 text-sm text-[var(--muted)] leading-relaxed">
+                Import survey data, run AI-powered risk analysis, and generate professional RI reports.
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-[var(--primary)]">
+                <Lock className="h-3.5 w-3.5" /> Enter with PIN <ArrowRight className="h-4 w-4" />
+              </div>
+            </Link>
+          </div>
         </div>
       </section>
 
