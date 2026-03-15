@@ -1,28 +1,54 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Camera, Upload, X, ImageIcon, Sparkles } from "lucide-react";
+import {
+  Camera,
+  Upload,
+  X,
+  ImageIcon,
+  ChevronDown,
+  ChevronRight,
+  Building2,
+  Flame,
+  Package,
+  Wrench,
+  CheckCircle2,
+  Info,
+} from "lucide-react";
 import type { TaggedPhoto } from "@/lib/survey-types";
-import { SECTION_META } from "@/lib/survey-types";
+import { PHOTO_CATEGORY_GROUPS } from "@/lib/survey-types";
+import type { PhotoCategoryDef } from "@/lib/survey-types";
 import { compressImage } from "@/lib/image-compress";
-import SelectField from "@/components/fields/SelectField";
 
 interface PhotoStepProps {
   photos: TaggedPhoto[];
   onChange: (photos: TaggedPhoto[]) => void;
 }
 
-// No hard limit — engineers may need many photos for large sites
+// Icon map for group headers
+const GROUP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Building2,
+  Flame,
+  Package,
+  Wrench,
+};
 
-const SECTION_OPTIONS = [
-  { value: "general", label: "General / Overview" },
-  ...SECTION_META.map((s) => ({ value: s.id, label: `Section ${s.id}: ${s.title}` })),
-];
+// Total expected photos across all categories
+const TOTAL_EXPECTED = PHOTO_CATEGORY_GROUPS.reduce(
+  (sum, g) => sum + g.categories.reduce((s, c) => s + c.maxPhotos, 0),
+  0
+);
 
 export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
-  const [dragActive, setDragActive] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(PHOTO_CATEGORY_GROUPS.map((g) => g.id))
+  );
+  const [cameraTip, setCameraTip] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const generalFileRef = useRef<HTMLInputElement>(null);
+  const generalCameraRef = useRef<HTMLInputElement>(null);
+  const activeCategoryRef = useRef<PhotoCategoryDef | null>(null);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -33,185 +59,402 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
     });
   };
 
-  const addPhotos = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
+  // Get photos for a specific category code
+  const getPhotosForCategory = (code: string) =>
+    photos.filter((p) => p.caption.startsWith(`[${code}]`));
 
+  // Get photos not belonging to any category (general)
+  const getGeneralPhotos = () =>
+    photos.filter(
+      (p) =>
+        p.section === "general" &&
+        !PHOTO_CATEGORY_GROUPS.some((g) =>
+          g.categories.some((c) => p.caption.startsWith(`[${c.code}]`))
+        )
+    );
+
+  // Add photos for a specific category
+  const addPhotosForCategory = async (
+    files: FileList | File[],
+    category: PhotoCategoryDef | null
+  ) => {
+    const fileArray = Array.from(files);
     const newPhotos: TaggedPhoto[] = [];
     for (const file of fileArray) {
       const dataUrl = await readFileAsDataUrl(file);
       const compressed = await compressImage(dataUrl);
       newPhotos.push({
         dataUrl: compressed,
-        section: "general",
-        caption: "",
+        section: category ? category.section : "general",
+        caption: category ? `[${category.code}] ${category.label}` : "",
       });
     }
-
     onChange([...photos, ...newPhotos]);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await addPhotosForCategory(e.target.files, activeCategoryRef.current);
+      e.target.value = ""; // Reset so same file can be re-selected
+    }
+  };
+
+  const handleGeneralFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await addPhotosForCategory(e.target.files, null);
+      e.target.value = "";
+    }
   };
 
   const removePhoto = (index: number) => {
     onChange(photos.filter((_, i) => i !== index));
   };
 
-  const updatePhoto = (index: number, updates: Partial<TaggedPhoto>) => {
-    onChange(
-      photos.map((p, i) => (i === index ? { ...p, ...updates } : p))
-    );
+  const removePhotoByRef = (photo: TaggedPhoto) => {
+    const idx = photos.indexOf(photo);
+    if (idx >= 0) removePhoto(idx);
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (e.dataTransfer.files.length > 0) {
-      await addPhotos(e.dataTransfer.files);
-    }
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
   };
+
+  const handleBrowse = (cat: PhotoCategoryDef) => {
+    activeCategoryRef.current = cat;
+    fileInputRef.current?.click();
+  };
+
+  const handleCamera = (cat: PhotoCategoryDef) => {
+    activeCategoryRef.current = cat;
+    setCameraTip(cat.cameraTip);
+    // Camera opens after user dismisses the tip
+  };
+
+  const dismissTipAndOpenCamera = () => {
+    setCameraTip(null);
+    cameraInputRef.current?.click();
+  };
+
+  // Overall progress
+  const totalPhotos = photos.length;
+  const progressPct = Math.min(100, Math.round((totalPhotos / TOTAL_EXPECTED) * 100));
 
   return (
     <div className="animate-fade-in-up">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100">
-          <Camera className="h-5 w-5 text-teal-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100">
+          <Camera className="h-5 w-5 text-[#3D1556]" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-[var(--foreground)]">
             Site Photos
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            Upload photos of the property. Tag each photo with the relevant section for better analysis.
+            Follow the guided categories below. Each tells you what to photograph.
           </p>
         </div>
       </div>
 
-      {/* Upload area */}
-      <div
-        className={`relative rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
-          dragActive
-            ? "border-[var(--primary)] bg-blue-50"
-            : "border-[var(--border)] hover:border-[var(--primary)]/50"
-        }`}
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-      >
-        <Upload className="mx-auto h-10 w-10 text-[var(--muted)]" />
-        <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
-          Drag & drop photos here
-        </p>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          or use the buttons below ({photos.length} photo{photos.length !== 1 ? "s" : ""} uploaded)
+      {/* Overall progress bar */}
+      <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-[var(--muted)]">
+            Overall Progress
+          </span>
+          <span className="text-xs font-bold text-[var(--foreground)]">
+            {totalPhotos} / {TOTAL_EXPECTED} photos
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#3D1556] to-[#5B2D8E] transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Category Groups */}
+      <div className="space-y-3">
+        {PHOTO_CATEGORY_GROUPS.map((group) => {
+          const GroupIcon = GROUP_ICONS[group.icon] || Building2;
+          const isExpanded = expandedGroups.has(group.id);
+          const groupPhotoCount = group.categories.reduce(
+            (sum, c) => sum + getPhotosForCategory(c.code).length,
+            0
+          );
+          const groupMaxPhotos = group.categories.reduce(
+            (sum, c) => sum + c.maxPhotos,
+            0
+          );
+
+          return (
+            <div
+              key={group.id}
+              className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden"
+            >
+              {/* Group Header */}
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.id)}
+                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100">
+                  <GroupIcon className="h-4.5 w-4.5 text-[#3D1556]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-[var(--foreground)]">
+                    {group.title}
+                  </h3>
+                  <p className="text-xs text-[var(--muted)]">
+                    {group.categories.length} categories
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    groupPhotoCount >= groupMaxPhotos
+                      ? "bg-green-100 text-green-700"
+                      : groupPhotoCount > 0
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {groupPhotoCount}/{groupMaxPhotos}
+                </span>
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                )}
+              </button>
+
+              {/* Category Cards */}
+              {isExpanded && (
+                <div className="border-t border-[var(--border)] px-4 py-3 space-y-3">
+                  {group.categories.map((cat) => {
+                    const catPhotos = getPhotosForCategory(cat.code);
+                    const isFull = catPhotos.length >= cat.maxPhotos;
+
+                    return (
+                      <div
+                        key={cat.code}
+                        className={`rounded-xl border p-4 ${
+                          isFull
+                            ? "border-green-200 bg-green-50/50"
+                            : "border-gray-200 bg-white"
+                        }`}
+                      >
+                        {/* Category header */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#3D1556] text-[10px] font-bold text-white shrink-0">
+                                {cat.code}
+                              </span>
+                              <h4 className="text-sm font-bold text-[var(--foreground)]">
+                                {cat.label}
+                              </h4>
+                              {isFull && (
+                                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                              )}
+                            </div>
+                            <p className="mt-1.5 text-xs text-[var(--muted)] leading-relaxed">
+                              {cat.description}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ${
+                              isFull
+                                ? "bg-green-100 text-green-700"
+                                : catPhotos.length > 0
+                                ? "bg-purple-100 text-[#3D1556]"
+                                : "bg-gray-100 text-gray-400"
+                            }`}
+                          >
+                            {catPhotos.length}/{cat.maxPhotos}
+                          </span>
+                        </div>
+
+                        {/* Photo thumbnails */}
+                        {catPhotos.length > 0 && (
+                          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                            {catPhotos.map((photo) => (
+                              <div
+                                key={photos.indexOf(photo)}
+                                className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden border border-gray-200"
+                              >
+                                <img
+                                  src={photo.dataUrl}
+                                  alt={cat.label}
+                                  className="h-full w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removePhotoByRef(photo)}
+                                  className="absolute -right-0.5 -top-0.5 rounded-full bg-red-500 p-0.5 text-white shadow hover:bg-red-600"
+                                >
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        {!isFull && (
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleBrowse(cat)}
+                              className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition-colors hover:bg-gray-50"
+                            >
+                              <Upload className="h-3 w-3" />
+                              Browse
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCamera(cat)}
+                              className="flex items-center gap-1.5 rounded-lg bg-[#3D1556] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#5B2D8E]"
+                            >
+                              <Camera className="h-3 w-3" />
+                              Camera
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* General / Other Photos */}
+      <div className="mt-6 rounded-2xl border border-dashed border-[var(--border)] p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <ImageIcon className="h-4 w-4 text-[var(--muted)]" />
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">
+            General / Other Photos
+          </h3>
+          <span className="text-xs text-[var(--muted)]">
+            ({getGeneralPhotos().length} photos)
+          </span>
+        </div>
+        <p className="text-xs text-[var(--muted)] mb-3">
+          Any additional photos that don&apos;t fit the categories above.
         </p>
 
-        <div className="mt-4 flex justify-center gap-3">
+        {/* General photo thumbnails */}
+        {getGeneralPhotos().length > 0 && (
+          <div className="flex gap-2 flex-wrap mb-3">
+            {getGeneralPhotos().map((photo) => (
+              <div
+                key={photos.indexOf(photo)}
+                className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden border border-gray-200"
+              >
+                <img
+                  src={photo.dataUrl}
+                  alt="General"
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhotoByRef(photo)}
+                  className="absolute -right-0.5 -top-0.5 rounded-full bg-red-500 p-0.5 text-white shadow hover:bg-red-600"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-[var(--primary-light)]"
+            onClick={() => generalFileRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition-colors hover:bg-gray-50"
           >
-            <span className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Browse Files
-            </span>
+            <Upload className="h-3 w-3" />
+            Browse Files
           </button>
           <button
             type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition-all hover:bg-gray-50"
+            onClick={() => generalCameraRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition-colors hover:bg-gray-50"
           >
-            <span className="flex items-center gap-2">
-              <Camera className="h-4 w-4" />
-              Take Photo
-            </span>
+            <Camera className="h-3 w-3" />
+            Take Photo
           </button>
         </div>
 
         <input
-          ref={fileInputRef}
+          ref={generalFileRef}
           type="file"
           accept="image/*"
           multiple
           className="hidden"
-          onChange={(e) => e.target.files && addPhotos(e.target.files)}
+          onChange={handleGeneralFileChange}
         />
         <input
-          ref={cameraInputRef}
+          ref={generalCameraRef}
           type="file"
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => e.target.files && addPhotos(e.target.files)}
+          onChange={handleGeneralFileChange}
         />
       </div>
 
-      {/* Photo grid with tagging */}
-      {photos.length > 0 && (
-        <div className="mt-6 space-y-4">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">
-            Tag your photos ({photos.length})
-          </h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {photos.map((photo, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden"
-              >
-                <div className="relative aspect-video">
-                  <img
-                    src={photo.dataUrl}
-                    alt={`Photo ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removePhoto(index)}
-                    className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition-all hover:bg-red-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="absolute left-2 top-2 rounded-lg bg-black/60 px-2 py-1 text-xs font-bold text-white">
-                    {index + 1}
-                  </span>
-                  {photo.section !== "general" && (
-                    <span className="absolute left-2 bottom-2 flex items-center gap-1 rounded-lg bg-blue-600/90 px-2 py-1 text-xs font-bold text-white">
-                      <Sparkles className="h-3 w-3" />
-                      Section {photo.section}
-                    </span>
-                  )}
-                </div>
-                <div className="p-3 space-y-2">
-                  <SelectField
-                    label="Section"
-                    value={photo.section}
-                    onChange={(v) => updatePhoto(index, { section: v as TaggedPhoto["section"] })}
-                    options={SECTION_OPTIONS}
-                  />
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--muted)]">
-                      Caption (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={photo.caption}
-                      onChange={(e) => updatePhoto(index, { caption: e.target.value })}
-                      placeholder="e.g. Main entrance, Roof condition"
-                      className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-xs text-[var(--foreground)] placeholder:text-gray-400 focus:border-[var(--primary)] focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Hidden file inputs for category uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
-      {/* Empty state */}
-      {photos.length === 0 && (
-        <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 p-8">
-          <ImageIcon className="h-12 w-12 text-gray-300" />
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            No photos uploaded yet. Photos help the AI provide more accurate analysis.
-          </p>
+      {/* Camera Tip Modal */}
+      {cameraTip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100">
+                <Info className="h-4 w-4 text-[#3D1556]" />
+              </div>
+              <h3 className="text-sm font-bold text-[var(--foreground)]">
+                Photo Tip
+              </h3>
+            </div>
+            <p className="text-sm text-[var(--muted)] leading-relaxed mb-5">
+              {cameraTip}
+            </p>
+            <button
+              type="button"
+              onClick={dismissTipAndOpenCamera}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#3D1556] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#5B2D8E]"
+            >
+              <Camera className="h-4 w-4" />
+              Open Camera
+            </button>
+          </div>
         </div>
       )}
     </div>
