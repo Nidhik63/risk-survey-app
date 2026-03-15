@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Camera,
   Upload,
@@ -49,6 +49,11 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
   const generalFileRef = useRef<HTMLInputElement>(null);
   const generalCameraRef = useRef<HTMLInputElement>(null);
   const activeCategoryRef = useRef<PhotoCategoryDef | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -136,8 +141,10 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
   };
 
   const dismissTipAndOpenCamera = () => {
-    setCameraTip(null);
+    // Trigger file input FIRST (must be synchronous within user gesture),
+    // then hide the modal
     cameraInputRef.current?.click();
+    setCameraTip(null);
   };
 
   // Overall progress
@@ -407,7 +414,7 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
           ref={generalCameraRef}
           type="file"
           accept="image/*"
-          capture="environment"
+          capture={isMobile ? "environment" : undefined}
           className="hidden"
           onChange={handleGeneralFileChange}
         />
@@ -426,7 +433,7 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
         ref={cameraInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        capture={isMobile ? "environment" : undefined}
         className="hidden"
         onChange={handleFileChange}
       />
