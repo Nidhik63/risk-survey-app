@@ -13,7 +13,6 @@ import {
   Package,
   Wrench,
   CheckCircle2,
-  Info,
 } from "lucide-react";
 import type { TaggedPhoto } from "@/lib/survey-types";
 import { PHOTO_CATEGORY_GROUPS } from "@/lib/survey-types";
@@ -43,7 +42,7 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(PHOTO_CATEGORY_GROUPS.map((g) => g.id))
   );
-  const [cameraTip, setCameraTip] = useState<string | null>(null);
+  // cameraTip modal removed — camera now opens directly on click
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const generalFileRef = useRef<HTMLInputElement>(null);
@@ -136,15 +135,8 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
 
   const handleCamera = (cat: PhotoCategoryDef) => {
     activeCategoryRef.current = cat;
-    setCameraTip(cat.cameraTip);
-    // Camera opens after user dismisses the tip
-  };
-
-  const dismissTipAndOpenCamera = () => {
-    // Trigger file input FIRST (must be synchronous within user gesture),
-    // then hide the modal
+    // Open camera directly — no popup needed, tip is in category description
     cameraInputRef.current?.click();
-    setCameraTip(null);
   };
 
   // Overall progress
@@ -438,32 +430,6 @@ export default function PhotoStep({ photos, onChange }: PhotoStepProps) {
         onChange={handleFileChange}
       />
 
-      {/* Camera Tip Modal */}
-      {cameraTip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100">
-                <Info className="h-4 w-4 text-[#3D1556]" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--foreground)]">
-                Photo Tip
-              </h3>
-            </div>
-            <p className="text-sm text-[var(--muted)] leading-relaxed mb-5">
-              {cameraTip}
-            </p>
-            <button
-              type="button"
-              onClick={dismissTipAndOpenCamera}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#3D1556] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#5B2D8E]"
-            >
-              <Camera className="h-4 w-4" />
-              Open Camera
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
