@@ -73,21 +73,9 @@ function SurveyPage() {
     setPinChecked(true);
   }, [role]);
 
-  // --- Surveyor submit: download JSON ---
+  // --- Surveyor submit: show completion page ---
   const handleSurveyorSubmit = (data: SurveyDataV2) => {
     setSurveyData(data);
-
-    // Download JSON file
-    const address = data.sectionA.address || "survey";
-    const date = new Date().toISOString().split("T")[0];
-    const filename = `NTRU-Survey-${address.replace(/[^a-zA-Z0-9]/g, "-")}-${date}.json`;
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
 
     // Clear localStorage
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }

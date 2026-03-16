@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
 import { defaultSurveyData } from "@/lib/survey-defaults";
@@ -623,8 +623,8 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
                 </>
               ) : (
                 <>
-                  <Download className="h-4 w-4" />
-                  Download Survey Data
+                  <CheckCircle2 className="h-4 w-4" />
+                  Complete Survey
                 </>
               )}
             </button>

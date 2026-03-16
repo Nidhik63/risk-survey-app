@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   CheckCircle2,
-  Download,
   FileText,
   ArrowLeft,
   Shield,
@@ -45,17 +44,6 @@ export default function SurveyorReport({ surveyData, onBack }: SurveyorReportPro
   const address = surveyData.sectionA.address || "survey";
   const date = new Date().toISOString().split("T")[0];
   const reportRef = `NTRU-${Date.now().toString(36).toUpperCase()}`;
-
-  const handleDownloadJSON = () => {
-    const filename = `NTRU-Survey-${address.replace(/[^a-zA-Z0-9]/g, "-")}-${date}.json`;
-    const blob = new Blob([JSON.stringify(surveyData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const handleExportWord = async () => {
     setExportingWord(true);
@@ -101,23 +89,14 @@ export default function SurveyorReport({ surveyData, onBack }: SurveyorReportPro
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadJSON}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-50 hover:border-gray-300"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">JSON</span>
-            </button>
-            <button
-              onClick={handleExportWord}
-              disabled={exportingWord}
-              className="flex items-center gap-1.5 rounded-xl bg-[#3D1556] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#5B2D8E] disabled:opacity-50"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              {exportingWord ? "Generating..." : "Word"}
-            </button>
-          </div>
+          <button
+            onClick={handleExportWord}
+            disabled={exportingWord}
+            className="flex items-center gap-1.5 rounded-xl bg-[#3D1556] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#5B2D8E] disabled:opacity-50"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {exportingWord ? "Generating..." : "Export Word"}
+          </button>
         </div>
       </div>
 
@@ -132,10 +111,7 @@ export default function SurveyorReport({ surveyData, onBack }: SurveyorReportPro
             Survey Data Saved
           </h1>
           <p className="mt-2 text-sm text-emerald-700 max-w-md mx-auto">
-            Your survey data has been downloaded as a JSON file. Please send it to the NTRU analyst team for report generation.
-          </p>
-          <p className="mt-3 text-xs text-emerald-600">
-            You can also export as Word document using the button above.
+            Your survey is complete. Use the <strong>Export Word</strong> button above to download the report and send it to the NTRU analyst team.
           </p>
         </div>
 
