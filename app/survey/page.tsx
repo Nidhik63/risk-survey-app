@@ -14,7 +14,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import SurveyWizard from "@/components/survey/SurveyWizard";
 import RIReport from "@/components/report/RIReport";
 import SurveyorReport from "@/components/SurveyorReport";
-import PinDialog from "@/components/PinDialog";
+import PinDialog, { type AnalystIdentity } from "@/components/PinDialog";
 import { RoleProvider } from "@/lib/role-context";
 import type { UserRole } from "@/lib/role-context";
 import type { SurveyDataV2, RIReportAnalysis, SurveyorIdentity } from "@/lib/survey-types";
@@ -65,6 +65,9 @@ function SurveyPage() {
   const [surveyorIdentity, setSurveyorIdentity] = useState<SurveyorIdentity | null>(null);
   const [identityChecked, setIdentityChecked] = useState(false);
 
+  // Analyst identity state
+  const [analystIdentity, setAnalystIdentity] = useState<AnalystIdentity | null>(null);
+
   // Import file ref
   const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -72,7 +75,15 @@ function SurveyPage() {
     if (role === "analyst") {
       const verified = sessionStorage.getItem("ntru-analyst-verified") === "true";
       setPinVerified(verified);
-      setIdentityChecked(true); // Analysts skip identity screen
+      // Restore analyst identity from sessionStorage if already logged in
+      if (verified) {
+        const savedName = sessionStorage.getItem("ntru-analyst-name");
+        const savedDate = sessionStorage.getItem("ntru-analyst-date");
+        if (savedName) {
+          setAnalystIdentity({ analystName: savedName, loginDate: savedDate || new Date().toISOString().split("T")[0] });
+        }
+      }
+      setIdentityChecked(true); // Analysts skip surveyor identity screen
     } else {
       setPinVerified(true); // Surveyors don't need PIN
       // Check if surveyor already has saved identity
@@ -247,7 +258,10 @@ function SurveyPage() {
   if (role === "analyst" && !pinVerified) {
     return (
       <PinDialog
-        onVerified={() => setPinVerified(true)}
+        onVerified={(identity) => {
+          setAnalystIdentity(identity);
+          setPinVerified(true);
+        }}
         onCancel={() => router.push("/")}
       />
     );
@@ -279,6 +293,8 @@ function SurveyPage() {
           analysis={analysis}
           surveyData={surveyData}
           onBack={handleNewSurvey}
+          analystName={analystIdentity?.analystName}
+          analystDate={analystIdentity?.loginDate}
         />
       </RoleProvider>
     );

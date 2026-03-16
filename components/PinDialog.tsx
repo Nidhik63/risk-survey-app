@@ -1,21 +1,51 @@
 "use client";
 
-import { useState } from "react";
-import { Shield, Lock, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Shield, Lock, ArrowLeft, User } from "lucide-react";
+
+const LS_KEY = "ntru-analyst-identity";
+
+export interface AnalystIdentity {
+  analystName: string;
+  loginDate: string;
+}
+
+/** Load saved analyst name from localStorage */
+export function loadAnalystIdentity(): AnalystIdentity | null {
+  try {
+    const json = localStorage.getItem(LS_KEY);
+    if (json) {
+      const parsed = JSON.parse(json);
+      if (parsed.analystName) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 interface PinDialogProps {
-  onVerified: () => void;
+  onVerified: (identity: AnalystIdentity) => void;
   onCancel: () => void;
 }
 
 export default function PinDialog({ onVerified, onCancel }: PinDialogProps) {
+  const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Pre-fill name from localStorage
+  useEffect(() => {
+    const saved = loadAnalystIdentity();
+    if (saved) {
+      setName(saved.analystName);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pin.trim()) return;
+    if (!pin.trim() || !name.trim()) return;
 
     setLoading(true);
     setError("");
@@ -29,8 +59,20 @@ export default function PinDialog({ onVerified, onCancel }: PinDialogProps) {
       const data = await res.json();
 
       if (data.valid) {
+        const identity: AnalystIdentity = {
+          analystName: name.trim(),
+          loginDate: new Date().toISOString().split("T")[0],
+        };
+        // Save name for next time
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify(identity));
+        } catch {
+          // ignore
+        }
         sessionStorage.setItem("ntru-analyst-verified", "true");
-        onVerified();
+        sessionStorage.setItem("ntru-analyst-name", identity.analystName);
+        sessionStorage.setItem("ntru-analyst-date", identity.loginDate);
+        onVerified(identity);
       } else {
         setError("Invalid PIN. Please try again.");
         setPin("");
@@ -53,14 +95,34 @@ export default function PinDialog({ onVerified, onCancel }: PinDialogProps) {
             NTRU Analyst Access
           </h1>
           <p className="mt-1 text-sm text-white/50">
-            Enter your team PIN to continue
+            Enter your name and team PIN to continue
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-6 shadow-2xl">
+          {/* Analyst Name */}
           <div className="mb-4">
             <label className="mb-1.5 block text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Access PIN
+              Your Name <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Nidhi Kashyap"
+                autoFocus
+                required
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:border-[#3D1556] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3D1556]/20"
+              />
+            </div>
+          </div>
+
+          {/* PIN */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Access PIN <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -69,7 +131,6 @@ export default function PinDialog({ onVerified, onCancel }: PinDialogProps) {
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="Enter PIN"
-                autoFocus
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:border-[#3D1556] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3D1556]/20"
               />
             </div>
@@ -83,7 +144,7 @@ export default function PinDialog({ onVerified, onCancel }: PinDialogProps) {
 
           <button
             type="submit"
-            disabled={loading || !pin.trim()}
+            disabled={loading || !pin.trim() || !name.trim()}
             className="w-full rounded-xl bg-[#3D1556] py-3 text-sm font-bold text-white transition-all hover:bg-[#5B2D8E] disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Continue"}
