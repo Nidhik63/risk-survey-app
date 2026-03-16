@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Send, Download, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
 import { defaultSurveyData } from "@/lib/survey-defaults";
 import { useRole } from "@/lib/role-context";
+import { savePhotos, loadPhotos, clearPhotos } from "@/lib/photo-store";
 import StepIndicator from "./StepIndicator";
 import SectionAForm from "./SectionAForm";
 import SectionBForm from "./SectionBForm";
@@ -44,35 +45,46 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
 
   // Check localStorage on mount — but DON'T auto-load if meaningful data exists
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
+    (async () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const savedPhotoCount = (await loadPhotos()).length;
 
-        // Check if any meaningful data exists (not just empty defaults)
-        const hasContent =
-          (parsed.sectionA?.insuredName?.trim()) ||
-          (parsed.sectionA?.address?.trim()) ||
-          (parsed.sectionA?.surveyorName?.trim());
+        if (saved) {
+          const parsed = JSON.parse(saved);
 
-        if (hasContent) {
-          // Show choice screen instead of auto-loading
-          setSavedLabel(
-            parsed.sectionA?.insuredName?.trim() ||
-            parsed.sectionA?.address?.trim() ||
-            "Previous survey"
-          );
+          // Check if any meaningful data exists (not just empty defaults)
+          const hasContent =
+            (parsed.sectionA?.insuredName?.trim()) ||
+            (parsed.sectionA?.address?.trim()) ||
+            (parsed.sectionA?.surveyorName?.trim()) ||
+            savedPhotoCount > 0;
+
+          if (hasContent) {
+            // Show choice screen instead of auto-loading
+            setSavedLabel(
+              parsed.sectionA?.insuredName?.trim() ||
+              parsed.sectionA?.address?.trim() ||
+              "Previous survey"
+            );
+            setResumeState("choosing");
+            setLoaded(true);
+            return;
+          }
+        } else if (savedPhotoCount > 0) {
+          // Only photos saved (no form data yet)
+          setSavedLabel("Previous survey");
           setResumeState("choosing");
           setLoaded(true);
           return;
         }
+      } catch {
+        // ignore parse errors
       }
-    } catch {
-      // ignore parse errors
-    }
-    // No meaningful saved data — go straight to empty form
-    setResumeState("ready");
-    setLoaded(true);
+      // No meaningful saved data — go straight to empty form
+      setResumeState("ready");
+      setLoaded(true);
+    })();
   }, []);
 
   // Load imported data (from analyst JSON import)
@@ -86,9 +98,11 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
   }, [importedData]);
 
   // Load saved data into form state (called when user clicks "Continue")
-  const loadSavedData = () => {
+  const loadSavedData = async () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+      const savedPhotos = await loadPhotos();
+
       if (saved) {
         const parsed = JSON.parse(saved);
         // Migrate old totalArea → plotArea
@@ -106,12 +120,15 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
         }
         setData((prev) => ({
           ...prev,
+          photos: savedPhotos.length > 0 ? savedPhotos : prev.photos,
           sectionA: parsed.sectionA || prev.sectionA,
           sectionB: parsed.sectionB || prev.sectionB,
           sectionC: parsed.sectionC || prev.sectionC,
           sectionD: parsed.sectionD || prev.sectionD,
           sectionE: parsed.sectionE || prev.sectionE,
         }));
+      } else if (savedPhotos.length > 0) {
+        setData((prev) => ({ ...prev, photos: savedPhotos }));
       }
     } catch {
       // ignore
@@ -119,15 +136,17 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
     setResumeState("ready");
   };
 
-  // Start fresh — clear localStorage and proceed with empty form
+  // Start fresh — clear localStorage + IndexedDB photos and proceed with empty form
   const startFresh = () => {
     localStorage.removeItem(STORAGE_KEY);
+    clearPhotos();
     setData(defaultSurveyData);
     setCurrentStep(0);
     setResumeState("ready");
   };
 
-  // Auto-save to localStorage (excluding photos) — only when form is active
+  // Auto-save to localStorage (form fields) + IndexedDB (photos)
+  const prevPhotoCountRef = useRef(0);
   useEffect(() => {
     if (!loaded || resumeState !== "ready") return;
     try {
@@ -141,6 +160,11 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch {
       // ignore quota errors
+    }
+    // Save photos to IndexedDB when photo count changes
+    if (data.photos.length !== prevPhotoCountRef.current) {
+      prevPhotoCountRef.current = data.photos.length;
+      savePhotos(data.photos);
     }
   }, [data, loaded, resumeState]);
 
@@ -356,6 +380,7 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
       return;
     }
     localStorage.removeItem(STORAGE_KEY);
+    clearPhotos();
     onSubmit(data);
   };
 
