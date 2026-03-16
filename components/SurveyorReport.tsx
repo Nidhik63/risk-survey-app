@@ -113,6 +113,12 @@ export default function SurveyorReport({ surveyData, onBack }: SurveyorReportPro
           <p className="mt-2 text-sm text-emerald-700 max-w-md mx-auto">
             Your survey is complete. Use the <strong>Export Word</strong> button above to download the report and send it to the NTRU analyst team.
           </p>
+          {surveyData._meta?.fieldSurveyorName && (
+            <p className="mt-3 text-xs text-emerald-600">
+              Surveyed by: {surveyData._meta.fieldSurveyorName}
+              {surveyData._meta.fieldSurveyorCompany ? ` · ${surveyData._meta.fieldSurveyorCompany}` : ""}
+            </p>
+          )}
         </div>
 
         {/* Property Summary */}

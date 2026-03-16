@@ -17,7 +17,8 @@ import SurveyorReport from "@/components/SurveyorReport";
 import PinDialog from "@/components/PinDialog";
 import { RoleProvider } from "@/lib/role-context";
 import type { UserRole } from "@/lib/role-context";
-import type { SurveyDataV2, RIReportAnalysis } from "@/lib/survey-types";
+import type { SurveyDataV2, RIReportAnalysis, SurveyorIdentity } from "@/lib/survey-types";
+import SurveyorIdentityScreen, { loadSurveyorIdentity } from "@/components/SurveyorIdentityScreen";
 
 type AppState = "form" | "analyzing" | "report" | "surveyorComplete";
 
@@ -60,6 +61,10 @@ function SurveyPage() {
   const [pinVerified, setPinVerified] = useState(false);
   const [pinChecked, setPinChecked] = useState(false);
 
+  // Surveyor identity state (surveyor only)
+  const [surveyorIdentity, setSurveyorIdentity] = useState<SurveyorIdentity | null>(null);
+  const [identityChecked, setIdentityChecked] = useState(false);
+
   // Import file ref
   const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -67,14 +72,25 @@ function SurveyPage() {
     if (role === "analyst") {
       const verified = sessionStorage.getItem("ntru-analyst-verified") === "true";
       setPinVerified(verified);
+      setIdentityChecked(true); // Analysts skip identity screen
     } else {
       setPinVerified(true); // Surveyors don't need PIN
+      // Check if surveyor already has saved identity
+      const saved = loadSurveyorIdentity();
+      if (saved) {
+        setSurveyorIdentity(saved);
+      }
+      setIdentityChecked(true);
     }
     setPinChecked(true);
   }, [role]);
 
   // --- Surveyor submit: show completion page ---
   const handleSurveyorSubmit = (data: SurveyDataV2) => {
+    // Attach surveyor identity metadata (not shown in reports)
+    if (surveyorIdentity) {
+      data._meta = surveyorIdentity;
+    }
     setSurveyData(data);
 
     // Clear localStorage
@@ -224,8 +240,8 @@ function SurveyPage() {
     }
   };
 
-  // --- Wait for PIN check ---
-  if (!pinChecked) return null;
+  // --- Wait for checks ---
+  if (!pinChecked || !identityChecked) return null;
 
   // --- PIN gate for analyst ---
   if (role === "analyst" && !pinVerified) {
@@ -233,6 +249,15 @@ function SurveyPage() {
       <PinDialog
         onVerified={() => setPinVerified(true)}
         onCancel={() => router.push("/")}
+      />
+    );
+  }
+
+  // --- Identity gate for surveyor ---
+  if (role === "surveyor" && !surveyorIdentity) {
+    return (
+      <SurveyorIdentityScreen
+        onContinue={(identity) => setSurveyorIdentity(identity)}
       />
     );
   }

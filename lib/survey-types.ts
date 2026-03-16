@@ -97,6 +97,12 @@ export interface TaggedPhoto {
   caption: string;
 }
 
+// --- Surveyor identity (internal only — not shown in reports) ---
+export interface SurveyorIdentity {
+  fieldSurveyorName: string;
+  fieldSurveyorCompany: string;
+}
+
 // --- Complete V2 Survey Data ---
 export interface SurveyDataV2 {
   sectionA: SectionA;
@@ -105,6 +111,7 @@ export interface SurveyDataV2 {
   sectionD: SectionD;
   sectionE: SectionE;
   photos: TaggedPhoto[];
+  _meta?: SurveyorIdentity;
 }
 
 // ============================================================
