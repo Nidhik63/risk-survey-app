@@ -17,6 +17,8 @@ import {
   Footer,
   TabStopType,
   TabStopPosition,
+  TableLayoutType,
+  VerticalAlign,
 } from "docx";
 import { saveAs } from "file-saver";
 import type { SurveyDataV2, TaggedPhoto } from "./survey-types";
@@ -25,6 +27,18 @@ const PURPLE = "3D1556";
 const GRAY = "64748B";
 const GRAY_LIGHT = "F1F5F9";
 const WHITE = "FFFFFF";
+
+// Page width in DXA (twips) for A4 with 1-inch margins ≈ 9026
+const PAGE_WIDTH = 9026;
+
+const TABLE_BORDERS = {
+  top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+  bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+  left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+  right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+  insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+  insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+};
 
 /** Convert a data-URL (data:image/…;base64,…) to a Uint8Array for ImageRun */
 function dataUrlToUint8(dataUrl: string): Uint8Array {
@@ -75,9 +89,10 @@ function photoBlock(photo: TaggedPhoto): Paragraph[] {
   return items;
 }
 
-function headerCell(text: string, width?: number): TableCell {
+function headerCell(text: string, widthDxa: number): TableCell {
   return new TableCell({
-    width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,
+    width: { size: widthDxa, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
     shading: { type: ShadingType.SOLID, color: PURPLE, fill: PURPLE },
     children: [
       new Paragraph({
@@ -88,9 +103,10 @@ function headerCell(text: string, width?: number): TableCell {
   });
 }
 
-function bodyCell(text: string, width?: number): TableCell {
+function bodyCell(text: string, widthDxa: number): TableCell {
   return new TableCell({
-    width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,
+    width: { size: widthDxa, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
     children: [
       new Paragraph({
         spacing: { before: 30, after: 30 },
@@ -100,9 +116,10 @@ function bodyCell(text: string, width?: number): TableCell {
   });
 }
 
-function labelCell(text: string, width?: number): TableCell {
+function labelCell(text: string, widthDxa: number): TableCell {
   return new TableCell({
-    width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,
+    width: { size: widthDxa, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
     shading: { type: ShadingType.SOLID, color: GRAY_LIGHT, fill: GRAY_LIGHT },
     children: [
       new Paragraph({
@@ -113,21 +130,19 @@ function labelCell(text: string, width?: number): TableCell {
   });
 }
 
+const LABEL_W = Math.round(PAGE_WIDTH * 0.38);
+const VALUE_W = PAGE_WIDTH - LABEL_W;
+
 function sectionTable(fields: { label: string; value: string }[]): Table {
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: {
-      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    },
+    width: { size: PAGE_WIDTH, type: WidthType.DXA },
+    layout: TableLayoutType.FIXED,
+    columnWidths: [LABEL_W, VALUE_W],
+    borders: TABLE_BORDERS,
     rows: fields.map(
       (f) =>
         new TableRow({
-          children: [labelCell(f.label, 40), bodyCell(f.value, 60)],
+          children: [labelCell(f.label, LABEL_W), bodyCell(f.value, VALUE_W)],
         })
     ),
   });
@@ -141,6 +156,9 @@ function sectionHeading(title: string): Paragraph {
   });
 }
 
+const COVER_LABEL_W = Math.round(PAGE_WIDTH * 0.32);
+const COVER_VALUE_W = PAGE_WIDTH - COVER_LABEL_W;
+
 export async function exportSurveyToDocx(
   surveyData: SurveyDataV2,
   reportRef: string,
@@ -153,23 +171,18 @@ export async function exportSurveyToDocx(
   const e = surveyData.sectionE;
 
   const coverTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: {
-      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
-    },
+    width: { size: PAGE_WIDTH, type: WidthType.DXA },
+    layout: TableLayoutType.FIXED,
+    columnWidths: [COVER_LABEL_W, COVER_VALUE_W],
+    borders: TABLE_BORDERS,
     rows: [
-      new TableRow({ children: [headerCell("Field", 35), headerCell("Details", 65)] }),
-      new TableRow({ children: [labelCell("Insured Name", 35), bodyCell(a.insuredName, 65)] }),
-      new TableRow({ children: [labelCell("Address", 35), bodyCell(a.address, 65)] }),
-      new TableRow({ children: [labelCell("Date of Survey", 35), bodyCell(a.dateOfSurvey, 65)] }),
-      new TableRow({ children: [labelCell("Surveyor", 35), bodyCell(a.surveyorName, 65)] }),
-      new TableRow({ children: [labelCell("Reference", 35), bodyCell(reportRef, 65)] }),
-      new TableRow({ children: [labelCell("Photos", 35), bodyCell(`${surveyData.photos.length} photos uploaded`, 65)] }),
+      new TableRow({ children: [headerCell("Field", COVER_LABEL_W), headerCell("Details", COVER_VALUE_W)] }),
+      new TableRow({ children: [labelCell("Insured Name", COVER_LABEL_W), bodyCell(a.insuredName, COVER_VALUE_W)] }),
+      new TableRow({ children: [labelCell("Address", COVER_LABEL_W), bodyCell(a.address, COVER_VALUE_W)] }),
+      new TableRow({ children: [labelCell("Date of Survey", COVER_LABEL_W), bodyCell(a.dateOfSurvey, COVER_VALUE_W)] }),
+      new TableRow({ children: [labelCell("Surveyor", COVER_LABEL_W), bodyCell(a.surveyorName, COVER_VALUE_W)] }),
+      new TableRow({ children: [labelCell("Reference", COVER_LABEL_W), bodyCell(reportRef, COVER_VALUE_W)] }),
+      new TableRow({ children: [labelCell("Photos", COVER_LABEL_W), bodyCell(`${surveyData.photos.length} photos uploaded`, COVER_VALUE_W)] }),
     ],
   });
 
@@ -367,15 +380,42 @@ export async function exportSurveyToDocx(
   const blob = await Packer.toBlob(doc);
 
   // Embed the raw survey JSON inside the .docx (which is a ZIP)
-  // so analysts can import the Word file directly
+  // so analysts can import the Word file directly.
+  // We store it as a custom XML part with proper Content_Types declaration
+  // to avoid Word "repair" warnings.
   try {
     const JSZip = (await import("jszip")).default;
     const zip = await JSZip.loadAsync(blob);
-    zip.file("ntru-survey-data.json", JSON.stringify(surveyData));
+
+    // Add survey data as a custom XML part (Word ignores unknown parts gracefully)
+    const surveyJson = JSON.stringify(surveyData);
+    zip.file("customXml/ntruSurveyData.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<ntruData>${encodeXml(surveyJson)}</ntruData>`);
+
+    // Update [Content_Types].xml to declare the custom part
+    const ctFile = zip.file("[Content_Types].xml");
+    if (ctFile) {
+      let ct = await ctFile.async("string");
+      // Add Override for our custom XML before closing </Types>
+      ct = ct.replace(
+        "</Types>",
+        `<Override PartName="/customXml/ntruSurveyData.xml" ContentType="application/xml"/></Types>`
+      );
+      zip.file("[Content_Types].xml", ct);
+    }
+
     const finalBlob = await zip.generateAsync({ type: "blob", mimeType: blob.type });
     saveAs(finalBlob, filename);
   } catch {
     // Fallback: save without embedded data
     saveAs(blob, filename);
   }
+}
+
+/** Escape special XML characters */
+function encodeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

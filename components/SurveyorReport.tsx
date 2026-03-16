@@ -130,10 +130,16 @@ export default function SurveyorReport({ surveyData, onBack }: SurveyorReportPro
               { label: "Floors", value: surveyData.sectionA.numberOfFloors },
             ].map((item) => (
               <div key={item.label} className="flex justify-between rounded-lg bg-gray-50 px-4 py-2.5">
-                <span className="text-xs font-medium text-[var(--muted)]">{item.label}</span>
-                <span className="text-xs font-bold text-[var(--foreground)]">{item.value || "—"}</span>
+                <span className="text-xs font-medium text-[var(--muted)] shrink-0 mr-2">{item.label}</span>
+                <span className="text-xs font-bold text-[var(--foreground)] text-right break-words">{item.value || "—"}</span>
               </div>
             ))}
+            {surveyData.sectionA.occupancyDetails && (
+              <div className="sm:col-span-2 rounded-lg bg-gray-50 px-4 py-2.5">
+                <span className="text-xs font-medium text-[var(--muted)]">Occupancy Details</span>
+                <p className="text-xs font-bold text-[var(--foreground)] mt-1 break-words whitespace-pre-wrap">{surveyData.sectionA.occupancyDetails}</p>
+              </div>
+            )}
           </div>
         </div>
 

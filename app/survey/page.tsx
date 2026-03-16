@@ -177,12 +177,27 @@ function SurveyPage() {
         // Extract embedded survey data from Word file
         const JSZip = (await import("jszip")).default;
         const zip = await JSZip.loadAsync(file);
-        const dataFile = zip.file("ntru-survey-data.json");
-        if (!dataFile) {
+
+        // Try new format (custom XML part) first, then legacy (plain JSON file)
+        const xmlFile = zip.file("customXml/ntruSurveyData.xml");
+        const jsonFile = zip.file("ntru-survey-data.json");
+
+        if (xmlFile) {
+          const xml = await xmlFile.async("string");
+          // Extract JSON from <ntruData>...</ntruData>
+          const match = xml.match(/<ntruData>([\s\S]*?)<\/ntruData>/);
+          if (!match) throw new Error("Survey data is corrupted in this Word file.");
+          // Decode XML entities back to JSON
+          const decoded = match[1]
+            .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+          data = JSON.parse(decoded) as SurveyDataV2;
+        } else if (jsonFile) {
+          const text = await jsonFile.async("string");
+          data = JSON.parse(text) as SurveyDataV2;
+        } else {
           throw new Error("This Word file does not contain survey data. Please use a file exported from the NTRU survey app.");
         }
-        const text = await dataFile.async("string");
-        data = JSON.parse(text) as SurveyDataV2;
       } else {
         // Try parsing as JSON
         const text = await file.text();
