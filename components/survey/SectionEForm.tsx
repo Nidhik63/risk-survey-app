@@ -5,6 +5,7 @@ import SelectField from "@/components/fields/SelectField";
 import TextField from "@/components/fields/TextField";
 import TextAreaField from "@/components/fields/TextAreaField";
 import YesNoField from "@/components/fields/YesNoField";
+import DateOrNaField from "@/components/fields/DateOrNaField";
 import { Wrench } from "lucide-react";
 
 interface SectionEFormProps {
@@ -97,23 +98,20 @@ export default function SectionEForm({ data, onChange }: SectionEFormProps) {
               required
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <TextField
+              <DateOrNaField
                 label="Roof Maintenance"
                 value={data.roofMaintenance}
                 onChange={(v) => update("roofMaintenance", v)}
-                placeholder="Last inspected"
               />
-              <TextField
+              <DateOrNaField
                 label="Electrical Maintenance"
                 value={data.electricalMaintenance}
                 onChange={(v) => update("electricalMaintenance", v)}
-                placeholder="Last inspected"
               />
-              <TextField
+              <DateOrNaField
                 label="Fire Safety Maintenance"
                 value={data.fireSafetyMaintenance}
                 onChange={(v) => update("fireSafetyMaintenance", v)}
-                placeholder="Last inspected"
               />
             </div>
           </div>
