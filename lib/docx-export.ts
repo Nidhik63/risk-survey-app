@@ -3,6 +3,7 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ImageRun,
   Table,
   TableRow,
   TableCell,
@@ -18,7 +19,7 @@ import {
   TabStopPosition,
 } from "docx";
 import { saveAs } from "file-saver";
-import type { RIReportAnalysis, SurveyDataV2 } from "./survey-types";
+import type { RIReportAnalysis, SurveyDataV2, TaggedPhoto } from "./survey-types";
 
 // NTRU brand purple
 const PURPLE = "3D1556";
@@ -26,6 +27,55 @@ const PURPLE_LIGHT = "5B2D8E";
 const GRAY = "64748B";
 const GRAY_LIGHT = "F1F5F9";
 const WHITE = "FFFFFF";
+
+/** Convert a data-URL to a Uint8Array for ImageRun */
+function dataUrlToUint8(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/** Build paragraphs for a single photo: image + caption */
+function photoBlock(photo: TaggedPhoto): Paragraph[] {
+  const items: Paragraph[] = [];
+  try {
+    const imageData = dataUrlToUint8(photo.dataUrl);
+    items.push(
+      new Paragraph({
+        spacing: { before: 200, after: 80 },
+        children: [
+          new ImageRun({
+            data: imageData,
+            transformation: { width: 450, height: 300 },
+            type: "jpg",
+          }),
+        ],
+      })
+    );
+  } catch {
+    items.push(
+      new Paragraph({
+        spacing: { before: 200, after: 80 },
+        children: [new TextRun({ text: "[Photo could not be embedded]", italics: true, color: GRAY, size: 18, font: "Calibri" })],
+      })
+    );
+  }
+  if (photo.caption) {
+    items.push(
+      new Paragraph({
+        spacing: { after: 200 },
+        children: [
+          new TextRun({ text: photo.caption, size: 18, font: "Calibri", color: GRAY, italics: true }),
+        ],
+      })
+    );
+  }
+  return items;
+}
 
 // Severity → color mapping
 const severityColor: Record<string, string> = {
@@ -467,6 +517,26 @@ export async function exportReportToDocx(
               ),
             ],
           }),
+
+          // ── SITE PHOTOS ──
+          ...(surveyData.photos.length > 0
+            ? [
+                new Paragraph({ children: [new PageBreak()] }),
+                new Paragraph({
+                  spacing: { after: 200 },
+                  children: [
+                    new TextRun({ text: "Site Photos", bold: true, size: 32, color: PURPLE, font: "Calibri" }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { after: 200 },
+                  children: [
+                    new TextRun({ text: `${surveyData.photos.length} photos captured during survey`, size: 20, font: "Calibri" }),
+                  ],
+                }),
+                ...surveyData.photos.flatMap((photo) => photoBlock(photo)),
+              ]
+            : []),
 
           // ── DISCLAIMER ──
           new Paragraph({ spacing: { before: 600 } }),

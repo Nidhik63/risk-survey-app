@@ -61,14 +61,17 @@ function ReviewCard({
       </div>
       <div className="p-4">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {entries.map(({ label, value }) => (
-            <div key={label} className="text-xs">
-              <span className="text-[var(--muted)]">{label}:</span>{" "}
-              <span className={`font-medium ${value ? "text-[var(--foreground)]" : "text-gray-300 italic"}`}>
-                {value || "Not provided"}
-              </span>
-            </div>
-          ))}
+          {entries.map(({ label, value }) => {
+            const isLong = (value || "").length > 60;
+            return (
+              <div key={label} className={`text-xs${isLong ? " sm:col-span-2" : ""}`}>
+                <span className="text-[var(--muted)]">{label}:</span>{" "}
+                <span className={`font-medium break-words ${value ? "text-[var(--foreground)]" : "text-gray-300 italic"}`}>
+                  {value || "Not provided"}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -84,6 +87,7 @@ export default function ReviewStep({ data, onGoToStep }: ReviewStepProps) {
     { label: "Survey Date", value: data.sectionA.dateOfSurvey },
     { label: "Surveyor", value: data.sectionA.surveyorName },
     { label: "Occupancy", value: data.sectionA.occupancy },
+    { label: "Occupancy Details", value: data.sectionA.occupancyDetails },
     { label: "Plot Area", value: data.sectionA.plotArea ? `${data.sectionA.plotArea} sqm` : "" },
     { label: "Constructed Area", value: data.sectionA.constructedArea ? `${data.sectionA.constructedArea} sqm` : "" },
     { label: "GEO Code", value: data.sectionA.latitude && data.sectionA.longitude ? `${parseFloat(data.sectionA.latitude).toFixed(4)}, ${parseFloat(data.sectionA.longitude).toFixed(4)}` : "" },
