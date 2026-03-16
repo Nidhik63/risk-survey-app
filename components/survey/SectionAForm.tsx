@@ -463,6 +463,8 @@ export default function SectionAForm({ data, onChange, onFireBrigadeFound }: Sec
             value={data.occupancyDetails}
             onChange={(v) => update("occupancyDetails", v)}
             placeholder="Describe what is stored/manufactured"
+            multiline
+            rows={3}
           />
         </div>
 
