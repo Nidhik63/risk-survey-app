@@ -171,8 +171,23 @@ function SurveyPage() {
     e.target.value = "";
 
     try {
-      const text = await file.text();
-      const data = JSON.parse(text) as SurveyDataV2;
+      let data: SurveyDataV2;
+
+      if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        // Extract embedded survey data from Word file
+        const JSZip = (await import("jszip")).default;
+        const zip = await JSZip.loadAsync(file);
+        const dataFile = zip.file("ntru-survey-data.json");
+        if (!dataFile) {
+          throw new Error("This Word file does not contain survey data. Please use a file exported from the NTRU survey app.");
+        }
+        const text = await dataFile.async("string");
+        data = JSON.parse(text) as SurveyDataV2;
+      } else {
+        // Try parsing as JSON
+        const text = await file.text();
+        data = JSON.parse(text) as SurveyDataV2;
+      }
 
       // Validate shape
       if (!data.sectionA || !data.sectionB || !data.sectionC || !data.sectionD || !data.sectionE) {
@@ -189,7 +204,7 @@ function SurveyPage() {
       setWizardKey((k) => k + 1);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to import file. Please check it is a valid NTRU survey JSON."
+        err instanceof Error ? err.message : "Failed to import file. Please use an NTRU survey Word or JSON file."
       );
     }
   };
@@ -319,7 +334,7 @@ function SurveyPage() {
                   <input
                     ref={importFileRef}
                     type="file"
-                    accept=".json"
+                    accept=".docx,.json"
                     className="hidden"
                     onChange={handleImportFile}
                   />

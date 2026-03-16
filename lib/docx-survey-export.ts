@@ -365,5 +365,17 @@ export async function exportSurveyToDocx(
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, filename);
+
+  // Embed the raw survey JSON inside the .docx (which is a ZIP)
+  // so analysts can import the Word file directly
+  try {
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(blob);
+    zip.file("ntru-survey-data.json", JSON.stringify(surveyData));
+    const finalBlob = await zip.generateAsync({ type: "blob", mimeType: blob.type });
+    saveAs(finalBlob, filename);
+  } catch {
+    // Fallback: save without embedded data
+    saveAs(blob, filename);
+  }
 }
