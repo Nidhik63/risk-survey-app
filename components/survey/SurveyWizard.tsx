@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Send, Download, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
@@ -145,8 +145,7 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
     setResumeState("ready");
   };
 
-  // Auto-save to localStorage (form fields) + IndexedDB (photos)
-  const prevPhotoCountRef = useRef(0);
+  // Auto-save form fields to localStorage
   useEffect(() => {
     if (!loaded || resumeState !== "ready") return;
     try {
@@ -161,12 +160,10 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
     } catch {
       // ignore quota errors
     }
-    // Save photos to IndexedDB when photo count changes
-    if (data.photos.length !== prevPhotoCountRef.current) {
-      prevPhotoCountRef.current = data.photos.length;
-      savePhotos(data.photos);
-    }
-  }, [data, loaded, resumeState]);
+  }, [data.sectionA, data.sectionB, data.sectionC, data.sectionD, data.sectionE, loaded, resumeState]);
+
+  // Photo save is handled explicitly in handlePhotosChange below
+  // (not via useEffect to avoid race conditions with initial load)
 
   // Auto-fill from photos (processes in batches of 15)
   const handleAutoFill = async () => {
@@ -390,7 +387,10 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
         return (
           <PhotoStep
             photos={data.photos}
-            onChange={(photos) => setData((prev) => ({ ...prev, photos }))}
+            onChange={(photos) => {
+              setData((prev) => ({ ...prev, photos }));
+              savePhotos(photos);
+            }}
           />
         );
       case 1:
