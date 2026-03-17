@@ -387,8 +387,20 @@ export async function exportSurveyToDocx(
     const JSZip = (await import("jszip")).default;
     const zip = await JSZip.loadAsync(blob);
 
+    // Compress photos for embedding (smaller than display versions)
+    // to keep the .docx file size manageable for import
+    const embeddableData: SurveyDataV2 = {
+      ...surveyData,
+      photos: await Promise.all(
+        surveyData.photos.map(async (p) => ({
+          ...p,
+          dataUrl: await compressForEmbed(p.dataUrl),
+        }))
+      ),
+    };
+
     // Add survey data as a custom XML part (Word ignores unknown parts gracefully)
-    const surveyJson = JSON.stringify(surveyData);
+    const surveyJson = JSON.stringify(embeddableData);
     zip.file("customXml/ntruSurveyData.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<ntruData>${encodeXml(surveyJson)}</ntruData>`);
 
     // Update [Content_Types].xml to declare the custom part
@@ -418,4 +430,29 @@ function encodeXml(str: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** Compress a photo for embedding in the Word file (smaller for transfer) */
+function compressForEmbed(dataUrl: string, maxW = 800, quality = 0.5): Promise<string> {
+  return new Promise((resolve) => {
+    // Skip if not a data URL (safety check)
+    if (!dataUrl.startsWith("data:image")) {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      if (width > maxW) { height = (height * maxW) / width; width = maxW; }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }

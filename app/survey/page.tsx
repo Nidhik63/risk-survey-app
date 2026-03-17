@@ -110,6 +110,25 @@ function SurveyPage() {
     setAppState("surveyorComplete");
   };
 
+  // --- Compress a photo further for API submission (smaller size for Claude) ---
+  const compressForApi = (dataUrl: string, maxW = 800, quality = 0.5): Promise<string> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxW) { height = (height * maxW) / width; width = maxW; }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(dataUrl); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+
   // --- Analyst submit: AI analysis ---
   const handleAnalystSubmit = async (data: SurveyDataV2) => {
     setError("");
@@ -125,12 +144,23 @@ function SurveyPage() {
     }, 3000);
 
     try {
+      // Limit photos for API and compress them further to stay within Vercel body limit (~4.5MB)
       const MAX_API_PHOTOS = 15;
+      const selectedPhotos = data.photos.length > MAX_API_PHOTOS
+        ? data.photos.slice(0, MAX_API_PHOTOS)
+        : data.photos;
+
+      // Compress each photo to ~800px wide, 50% quality for API
+      const compressedPhotos = await Promise.all(
+        selectedPhotos.map(async (p) => ({
+          ...p,
+          dataUrl: await compressForApi(p.dataUrl),
+        }))
+      );
+
       const apiData: SurveyDataV2 = {
         ...data,
-        photos: data.photos.length > MAX_API_PHOTOS
-          ? data.photos.slice(0, MAX_API_PHOTOS)
-          : data.photos,
+        photos: compressedPhotos,
       };
 
       const response = await fetch("/api/analyze", {
@@ -192,18 +222,25 @@ function SurveyPage() {
   };
 
   // --- Import surveyor JSON (analyst only) ---
+  const [importing, setImporting] = useState(false);
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+
+    setImporting(true);
+    setError("");
 
     try {
       let data: SurveyDataV2;
 
       if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         // Extract embedded survey data from Word file
+        // Read as ArrayBuffer for better memory handling with large files
+        const buffer = await file.arrayBuffer();
         const JSZip = (await import("jszip")).default;
-        const zip = await JSZip.loadAsync(file);
+        const zip = await JSZip.loadAsync(buffer);
 
         // Try new format (custom XML part) first, then legacy (plain JSON file)
         const xmlFile = zip.file("customXml/ntruSurveyData.xml");
@@ -212,10 +249,14 @@ function SurveyPage() {
         if (xmlFile) {
           const xml = await xmlFile.async("string");
           // Extract JSON from <ntruData>...</ntruData>
-          const match = xml.match(/<ntruData>([\s\S]*?)<\/ntruData>/);
-          if (!match) throw new Error("Survey data is corrupted in this Word file.");
+          const startTag = "<ntruData>";
+          const endTag = "</ntruData>";
+          const startIdx = xml.indexOf(startTag);
+          const endIdx = xml.indexOf(endTag);
+          if (startIdx === -1 || endIdx === -1) throw new Error("Survey data is corrupted in this Word file.");
+          const encoded = xml.substring(startIdx + startTag.length, endIdx);
           // Decode XML entities back to JSON
-          const decoded = match[1]
+          const decoded = encoded
             .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
             .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
           data = JSON.parse(decoded) as SurveyDataV2;
@@ -245,9 +286,14 @@ function SurveyPage() {
       setAppState("form");
       setWizardKey((k) => k + 1);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to import file. Please use an NTRU survey Word or JSON file."
-      );
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("out of memory") || msg.includes("allocation") || msg.includes("RangeError")) {
+        setError("This file is too large to import in the browser. Try reducing the number of photos in the survey and re-exporting.");
+      } else {
+        setError(msg || "Failed to import file. Please use an NTRU survey Word or JSON file.");
+      }
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -382,10 +428,15 @@ function SurveyPage() {
                   <button
                     type="button"
                     onClick={() => importFileRef.current?.click()}
-                    className="flex items-center gap-1.5 rounded-lg border border-[#3D1556] bg-white px-3 py-1.5 text-xs font-bold text-[#3D1556] transition-colors hover:bg-purple-50"
+                    disabled={importing}
+                    className="flex items-center gap-1.5 rounded-lg border border-[#3D1556] bg-white px-3 py-1.5 text-xs font-bold text-[#3D1556] transition-colors hover:bg-purple-50 disabled:opacity-50"
                   >
-                    <Upload className="h-3.5 w-3.5" />
-                    Import Survey
+                    {importing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5" />
+                    )}
+                    {importing ? "Importing..." : "Import Survey"}
                   </button>
                   <input
                     ref={importFileRef}
