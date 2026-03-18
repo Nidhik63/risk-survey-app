@@ -230,7 +230,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Four Corners Shot",
         description: "Wide-angle shots of all four elevations to identify third-party exposure (how close the neighbours are).",
         section: "B",
-        maxPhotos: 6,
+        maxPhotos: 4,
         cameraTip: "Stand back far enough to capture the full building elevation. Include neighbouring structures in the frame to show exposure distance.",
       },
       {
@@ -238,7 +238,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Wall Panel / Insulation",
         description: "Near a door or repair area, take a close-up of the insulation core. Yellow/White = Foam (Combustible); Grey/Fibrous = Mineral Wool (Non-Combustible).",
         section: "B",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Get a close-up macro shot of the exposed insulation core. Focus on the colour and texture of the material.",
       },
       {
@@ -246,7 +246,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Roof Condition",
         description: "Photos of the roof surface, gutters, and downpipes. Look for sand blockage or signs of ponding water.",
         section: "B",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Capture the roof surface, drainage points, and any visible water pooling or debris. Include gutter condition.",
       },
       {
@@ -254,7 +254,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Boundary Walls",
         description: "Photos of the perimeter boundary walls around the property.",
         section: "B",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Walk the perimeter and capture boundary walls from different angles, showing height and condition.",
       },
     ],
@@ -301,7 +301,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Sprinkler Heads",
         description: "Looking straight up at the ceiling to check for obstructions (e.g., pallets or mezzanines blocking the spray pattern).",
         section: "C",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Point the camera straight up at the ceiling. Capture the sprinkler heads and any objects that might obstruct the spray.",
       },
       {
@@ -332,7 +332,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Aisle & Rack",
         description: "A photo looking down the main aisle to show the height of the racking and overall storage arrangement.",
         section: "D",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Stand at the end of the main aisle and photograph along its length, showing full rack height.",
       },
       {
@@ -340,7 +340,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Flue Spaces",
         description: "Photos showing the vertical gap between pallets on the racks — essential for sprinkler efficacy.",
         section: "D",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Focus on the gaps between stacked pallets/goods. These vertical gaps must be clear for sprinklers to work.",
       },
       {
@@ -348,7 +348,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Commodity Identification",
         description: "Close-up photos of labels on boxes and stored materials to identify what is stored.",
         section: "D",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Get close enough to read the text on product labels, hazard symbols, and packaging markings.",
       },
       {
@@ -356,7 +356,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Roof to Rack Distance",
         description: "Photos showing the distance from the top of the rack to the roof/ceiling.",
         section: "D",
-        maxPhotos: 4,
+        maxPhotos: 2,
         cameraTip: "Capture the gap between the top of storage racks and the roof structure above.",
       },
     ],

@@ -17,7 +17,8 @@ import SurveyorReport from "@/components/SurveyorReport";
 import PinDialog, { type AnalystIdentity } from "@/components/PinDialog";
 import { RoleProvider } from "@/lib/role-context";
 import type { UserRole } from "@/lib/role-context";
-import type { SurveyDataV2, RIReportAnalysis, SurveyorIdentity } from "@/lib/survey-types";
+import type { SurveyDataV2, RIReportAnalysis, SurveyorIdentity, TaggedPhoto } from "@/lib/survey-types";
+import { PHOTO_CATEGORY_GROUPS } from "@/lib/survey-types";
 import SurveyorIdentityScreen, { loadSurveyorIdentity } from "@/components/SurveyorIdentityScreen";
 
 type AppState = "form" | "analyzing" | "report" | "surveyorComplete";
@@ -129,21 +130,57 @@ function SurveyPage() {
       img.src = dataUrl;
     });
 
+  // --- Smart photo selection: one photo per category first, then extras ---
+  const selectPhotosForApi = (photos: TaggedPhoto[], maxTotal: number): TaggedPhoto[] => {
+    // Get all category codes
+    const allCodes = PHOTO_CATEGORY_GROUPS.flatMap((g) =>
+      g.categories.map((c) => c.code)
+    );
+
+    // Pick one photo per category (best coverage for AI analysis)
+    const picked: TaggedPhoto[] = [];
+    const remaining: TaggedPhoto[] = [];
+
+    for (const code of allCodes) {
+      const catPhotos = photos.filter((p) => p.caption.startsWith(`[${code}]`));
+      if (catPhotos.length > 0) {
+        picked.push(catPhotos[0]);
+        remaining.push(...catPhotos.slice(1));
+      }
+    }
+
+    // Add general photos to remaining pool
+    const general = photos.filter(
+      (p) => !allCodes.some((code) => p.caption.startsWith(`[${code}]`))
+    );
+    remaining.push(...general);
+
+    // Fill up to maxTotal with remaining photos
+    const result = [...picked];
+    for (const photo of remaining) {
+      if (result.length >= maxTotal) break;
+      result.push(photo);
+    }
+
+    return result.slice(0, maxTotal);
+  };
+
   // --- Build API payload that fits within Vercel 4.5MB body limit ---
   const buildApiPayload = async (data: SurveyDataV2) => {
     const VERCEL_LIMIT = 4_000_000; // 4MB safety margin (actual limit ~4.5MB)
 
     // Progressively more aggressive compression settings
     const LEVELS = [
-      { maxPhotos: 12, maxW: 640, quality: 0.45 },
-      { maxPhotos: 10, maxW: 512, quality: 0.35 },
-      { maxPhotos: 8, maxW: 480, quality: 0.30 },
-      { maxPhotos: 6, maxW: 400, quality: 0.25 },
-      { maxPhotos: 4, maxW: 320, quality: 0.20 },
+      { maxPhotos: 18, maxW: 640, quality: 0.40 },
+      { maxPhotos: 14, maxW: 512, quality: 0.35 },
+      { maxPhotos: 10, maxW: 480, quality: 0.30 },
+      { maxPhotos: 8, maxW: 400, quality: 0.25 },
+      { maxPhotos: 6, maxW: 320, quality: 0.20 },
     ];
 
     for (const level of LEVELS) {
-      const selected = data.photos.slice(0, level.maxPhotos);
+      // Smart selection: one per category first, then extras
+      const selected = selectPhotosForApi(data.photos, level.maxPhotos);
       const compressed = await Promise.all(
         selected.map(async (p) => ({
           ...p,
@@ -159,7 +196,7 @@ function SurveyPage() {
       }
     }
 
-    // Last resort: send with no photos at all
+    // Last resort: send with no photos at all (AI still uses checklist data)
     const apiData: SurveyDataV2 = { ...data, photos: [] };
     return JSON.stringify({ version: 2, surveyData: apiData });
   };
