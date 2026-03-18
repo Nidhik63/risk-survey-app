@@ -110,8 +110,8 @@ function SurveyPage() {
     setAppState("surveyorComplete");
   };
 
-  // --- Compress a photo further for API submission (smaller size for Claude) ---
-  const compressForApi = (dataUrl: string, maxW = 800, quality = 0.5): Promise<string> =>
+  // --- Compress a single photo for API submission ---
+  const compressPhoto = (dataUrl: string, maxW: number, quality: number): Promise<string> =>
     new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -129,6 +129,41 @@ function SurveyPage() {
       img.src = dataUrl;
     });
 
+  // --- Build API payload that fits within Vercel 4.5MB body limit ---
+  const buildApiPayload = async (data: SurveyDataV2) => {
+    const VERCEL_LIMIT = 4_000_000; // 4MB safety margin (actual limit ~4.5MB)
+
+    // Progressively more aggressive compression settings
+    const LEVELS = [
+      { maxPhotos: 12, maxW: 640, quality: 0.45 },
+      { maxPhotos: 10, maxW: 512, quality: 0.35 },
+      { maxPhotos: 8, maxW: 480, quality: 0.30 },
+      { maxPhotos: 6, maxW: 400, quality: 0.25 },
+      { maxPhotos: 4, maxW: 320, quality: 0.20 },
+    ];
+
+    for (const level of LEVELS) {
+      const selected = data.photos.slice(0, level.maxPhotos);
+      const compressed = await Promise.all(
+        selected.map(async (p) => ({
+          ...p,
+          dataUrl: await compressPhoto(p.dataUrl, level.maxW, level.quality),
+        }))
+      );
+
+      const apiData: SurveyDataV2 = { ...data, photos: compressed };
+      const payload = JSON.stringify({ version: 2, surveyData: apiData });
+
+      if (payload.length < VERCEL_LIMIT) {
+        return payload;
+      }
+    }
+
+    // Last resort: send with no photos at all
+    const apiData: SurveyDataV2 = { ...data, photos: [] };
+    return JSON.stringify({ version: 2, surveyData: apiData });
+  };
+
   // --- Analyst submit: AI analysis ---
   const handleAnalystSubmit = async (data: SurveyDataV2) => {
     setError("");
@@ -144,32 +179,14 @@ function SurveyPage() {
     }, 3000);
 
     try {
-      // Limit photos for API and compress them further to stay within Vercel body limit (~4.5MB)
-      const MAX_API_PHOTOS = 15;
-      const selectedPhotos = data.photos.length > MAX_API_PHOTOS
-        ? data.photos.slice(0, MAX_API_PHOTOS)
-        : data.photos;
-
-      // Compress each photo to ~800px wide, 50% quality for API
-      const compressedPhotos = await Promise.all(
-        selectedPhotos.map(async (p) => ({
-          ...p,
-          dataUrl: await compressForApi(p.dataUrl),
-        }))
-      );
-
-      const apiData: SurveyDataV2 = {
-        ...data,
-        photos: compressedPhotos,
-      };
+      // Build payload that fits within Vercel's body size limit
+      // Automatically compresses photos more aggressively if needed
+      const payload = await buildApiPayload(data);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          version: 2,
-          surveyData: apiData,
-        }),
+        body: payload,
       });
 
       clearInterval(stepInterval);
