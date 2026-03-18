@@ -269,7 +269,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Fire Pump Room",
         description: "The main diesel pump showing it is in 'Auto' mode.",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Capture the pump clearly showing the Auto/Manual switch position. Include the pump nameplate if visible.",
       },
       {
@@ -277,7 +277,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Pressure Gauges",
         description: "Pressure gauges to prove the fire protection system is pressurized.",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Get a clear, straight-on shot of the gauge face so the pressure reading is legible.",
       },
       {
@@ -285,7 +285,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Fuel Tank Level",
         description: "The fuel tank level for the backup generator.",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Capture the fuel gauge or sight glass showing the current fuel level clearly.",
       },
       {
@@ -293,7 +293,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Hose Reel",
         description: "Fire hose reels and their condition.",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Show the hose reel in full, including the nozzle condition and any instruction signage.",
       },
       {
@@ -301,7 +301,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Sprinkler Heads",
         description: "Looking straight up at the ceiling to check for obstructions (e.g., pallets or mezzanines blocking the spray pattern).",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 4,
         cameraTip: "Point the camera straight up at the ceiling. Capture the sprinkler heads and any objects that might obstruct the spray.",
       },
       {
@@ -309,7 +309,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Fire Alarm Panel",
         description: "A clear shot of the fire alarm panel LCD screen. Look for 'System Normal' (green) vs 'Fault' or 'Disable' status.",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Get a close-up of the LCD display so the status text is readable. Avoid flash glare on the screen.",
       },
       {
@@ -317,7 +317,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Civil Defence Connection",
         description: "Photo of the Hassantuk or equivalent remote monitoring device installed on the wall.",
         section: "C",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Capture the full device including any status lights and labels.",
       },
     ],
@@ -332,7 +332,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Aisle & Rack",
         description: "A photo looking down the main aisle to show the height of the racking and overall storage arrangement.",
         section: "D",
-        maxPhotos: 2,
+        maxPhotos: 3,
         cameraTip: "Stand at the end of the main aisle and photograph along its length, showing full rack height.",
       },
       {
@@ -371,7 +371,7 @@ export const PHOTO_CATEGORY_GROUPS: PhotoCategoryGroup[] = [
         label: "Main Electrical Board (LVP)",
         description: "A photo of the main electrical panel with the door open.",
         section: "E",
-        maxPhotos: 2,
+        maxPhotos: 1,
         cameraTip: "Open the panel door and capture the internal wiring and breaker layout. Include any labels.",
       },
       {
