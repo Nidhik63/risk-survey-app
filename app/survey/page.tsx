@@ -296,20 +296,21 @@ function SurveyPage() {
         const JSZip = (await import("jszip")).default;
         const zip = await JSZip.loadAsync(buffer);
 
-        // Try new format (custom XML part) first, then legacy (plain JSON file)
+        // Try multiple storage locations — Word editing may remove some but not all
+        // 1. Custom XML part (primary, may survive Word edits)
+        // 2. Legacy plain JSON file
+        // 3. ZIP comment (most resilient — Word never touches this)
         const xmlFile = zip.file("customXml/ntruSurveyData.xml");
         const jsonFile = zip.file("ntru-survey-data.json");
 
         if (xmlFile) {
           const xml = await xmlFile.async("string");
-          // Extract JSON from <ntruData>...</ntruData>
           const startTag = "<ntruData>";
           const endTag = "</ntruData>";
           const startIdx = xml.indexOf(startTag);
           const endIdx = xml.indexOf(endTag);
           if (startIdx === -1 || endIdx === -1) throw new Error("Survey data is corrupted in this Word file.");
           const encoded = xml.substring(startIdx + startTag.length, endIdx);
-          // Decode XML entities back to JSON
           const decoded = encoded
             .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
             .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
@@ -318,7 +319,20 @@ function SurveyPage() {
           const text = await jsonFile.async("string");
           data = JSON.parse(text) as SurveyDataV2;
         } else {
-          throw new Error("This Word file does not contain survey data. Please use a file exported from the NTRU survey app.");
+          // Fallback: check the ZIP comment (survives all Word edits)
+          const MARKER = "<!--NTRU_SURVEY_DATA:";
+          const comment = (zip as unknown as { comment?: string }).comment || "";
+          const markerIdx = comment.indexOf(MARKER);
+          if (markerIdx !== -1) {
+            const b64Start = markerIdx + MARKER.length;
+            const b64End = comment.indexOf(":END-->", b64Start);
+            if (b64End === -1) throw new Error("Survey data in this file is corrupted.");
+            const b64 = comment.substring(b64Start, b64End);
+            const jsonStr = decodeURIComponent(escape(atob(b64)));
+            data = JSON.parse(jsonStr) as SurveyDataV2;
+          } else {
+            throw new Error("This Word file does not contain survey data. Please use a file exported from the NTRU survey app.");
+          }
         }
       } else {
         // Try parsing as JSON

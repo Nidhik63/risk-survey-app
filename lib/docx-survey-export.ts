@@ -415,7 +415,16 @@ export async function exportSurveyToDocx(
       zip.file("[Content_Types].xml", ct);
     }
 
-    const finalBlob = await zip.generateAsync({ type: "blob", mimeType: blob.type });
+    // Also store as ZIP comment — Word never touches this, so it survives
+    // any editing/re-saving done in MS Word
+    const MARKER = "<!--NTRU_SURVEY_DATA:";
+    const commentPayload = `${MARKER}${btoa(unescape(encodeURIComponent(surveyJson)))}:END-->`;
+
+    const finalBlob = await zip.generateAsync({
+      type: "blob",
+      mimeType: blob.type,
+      comment: commentPayload,
+    });
     saveAs(finalBlob, filename);
   } catch {
     // Fallback: save without embedded data
