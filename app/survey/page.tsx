@@ -393,60 +393,61 @@ function SurveyPage() {
 
     try {
       let data: SurveyDataV2 | null = null;
-
-      // Separate files by type
-      const docxFiles: File[] = [];
-      const jsonFiles: File[] = [];
-      const imageFiles: File[] = [];
+      const allPhotos: TaggedPhoto[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        if (f.name.endsWith(".docx") || f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-          docxFiles.push(f);
-        } else if (f.name.endsWith(".json") || f.type === "application/json") {
-          jsonFiles.push(f);
-        } else if (f.type.startsWith("image/")) {
-          imageFiles.push(f);
+        const nameLower = (f.name || "").toLowerCase();
+        const isImage = f.type.startsWith("image/") || /\.(jpe?g|png|gif|bmp|webp|heic)$/i.test(nameLower);
+
+        if (isImage) {
+          // Direct image file
+          allPhotos.push(await imageFileToPhoto(f));
+          continue;
+        }
+
+        // For any non-image file, try to open as ZIP (.docx is a ZIP)
+        try {
+          const buffer = await f.arrayBuffer();
+          const JSZip = (await import("jszip")).default;
+          const zip = await JSZip.loadAsync(buffer);
+
+          // It's a valid ZIP — check for embedded survey JSON
+          data = await extractEmbeddedJson(zip);
+
+          if (!data) {
+            // No embedded JSON — extract text + images from the Word document
+            const textContent = await extractDocxText(zip);
+            const docImages = await extractDocxImages(zip);
+
+            data = emptySurvey();
+            if (textContent) {
+              data.sectionA.occupancyDetails = textContent.slice(0, 5000);
+            }
+            allPhotos.push(...docImages);
+          }
+        } catch {
+          // Not a valid ZIP — try as JSON text
+          try {
+            const text = await f.text();
+            const parsed = JSON.parse(text) as SurveyDataV2;
+            if (parsed.sectionA || parsed.sectionB) {
+              data = parsed;
+            }
+          } catch {
+            // Not JSON either — skip this file
+          }
         }
       }
 
-      // Process .docx file (use first one)
-      if (docxFiles.length > 0) {
-        const buffer = await docxFiles[0].arrayBuffer();
-        const JSZip = (await import("jszip")).default;
-        const zip = await JSZip.loadAsync(buffer);
-
-        // Try to extract embedded survey JSON first
-        data = await extractEmbeddedJson(zip);
-
-        if (!data) {
-          // No embedded JSON — this is an external Word file
-          // Extract text content and images from the document
-          const textContent = await extractDocxText(zip);
-          const docImages = await extractDocxImages(zip);
-
-          data = emptySurvey();
-          // Put the extracted text into occupancyDetails as context for the AI
-          data.sectionA.occupancyDetails = textContent.slice(0, 5000);
-          data.photos = docImages;
-        }
-      }
-
-      // Process .json file
-      if (!data && jsonFiles.length > 0) {
-        const text = await jsonFiles[0].text();
-        data = JSON.parse(text) as SurveyDataV2;
-      }
-
-      // Process image files (add to existing data or create new survey)
-      if (imageFiles.length > 0) {
-        if (!data) data = emptySurvey();
-        const importedPhotos = await Promise.all(imageFiles.map(imageFileToPhoto));
-        data.photos = [...data.photos, ...importedPhotos];
+      // Merge photos
+      if (!data && allPhotos.length > 0) data = emptySurvey();
+      if (data && allPhotos.length > 0) {
+        data.photos = [...(data.photos || []), ...allPhotos];
       }
 
       if (!data) {
-        throw new Error("No supported files found. Import a Word file (.docx), JSON file, or images (.jpg, .png).");
+        throw new Error("Could not read this file. Try importing a Word file (.docx), JSON file, or images (.jpg, .png).");
       }
 
       // Ensure all sections exist (for partial/external data)
@@ -618,7 +619,7 @@ function SurveyPage() {
                   <input
                     ref={importFileRef}
                     type="file"
-                    accept=".docx,.json,image/*"
+                    accept=".docx,.doc,.json,.jpg,.jpeg,.png,.gif,.webp,.heic,image/*,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     multiple
                     className="hidden"
                     onChange={handleImportFile}
