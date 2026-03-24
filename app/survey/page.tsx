@@ -398,8 +398,11 @@ function SurveyPage() {
   });
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    // Copy files into a plain array BEFORE clearing the input
+    // (clearing the input empties the live FileList reference)
+    const files = Array.from(fileList);
     e.target.value = "";
 
     setImporting(true);
@@ -473,7 +476,7 @@ function SurveyPage() {
       }
 
       if (!data) {
-        const fileInfo = Array.from(files).map(f => `${f.name} (${f.type || "no type"}, ${(f.size / 1024).toFixed(0)}KB)`).join(", ");
+        const fileInfo = files.map(f => `${f.name} (${f.type || "no type"}, ${(f.size / 1024).toFixed(0)}KB)`).join(", ");
         throw new Error(`Could not extract data from: ${fileInfo}. Check browser console for details.`);
       }
 
