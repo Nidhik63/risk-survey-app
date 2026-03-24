@@ -387,6 +387,99 @@ function SurveyPage() {
       reader.readAsDataURL(file);
     });
 
+  // --- Helper: parse structured text from a Word survey into form fields ---
+  const parseDocxTextToSurvey = (text: string): SurveyDataV2 => {
+    const d = emptySurvey();
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+    // Build a label→value map: each label line is followed by its value line
+    const map = new Map<string, string>();
+    for (let i = 0; i < lines.length - 1; i++) {
+      map.set(lines[i].toLowerCase(), lines[i + 1]);
+    }
+    const g = (key: string): string => map.get(key.toLowerCase()) || "";
+    const dash = (v: string) => (v === "—" || v === "-" ? "" : v);
+
+    // Section A
+    d.sectionA.insuredName = g("insured name");
+    d.sectionA.address = g("address");
+    d.sectionA.contactPerson = g("contact person");
+    d.sectionA.contactPhone = g("contact phone");
+    d.sectionA.dateOfSurvey = g("date of survey");
+    d.sectionA.surveyorName = g("surveyor name") || g("surveyor");
+    d.sectionA.occupancy = g("occupancy");
+    d.sectionA.occupancyOther = dash(g("occupancy (other)"));
+    d.sectionA.occupancyDetails = g("occupancy details");
+    d.sectionA.buildingAge = g("building age");
+    d.sectionA.plotArea = g("plot area (sqm)") || g("plot area");
+    d.sectionA.constructedArea = g("constructed area (sqm)") || g("constructed area");
+    d.sectionA.numberOfFloors = g("number of floors");
+    d.sectionA.numberOfBasements = g("number of basements");
+    d.sectionA.surroundingExposures = g("surrounding exposures");
+    d.sectionA.latitude = g("latitude");
+    d.sectionA.longitude = g("longitude");
+    d.sectionA.floodRiskLevel = g("flood risk level");
+    d.sectionA.floodRiskDetails = g("flood risk details");
+
+    // Section B
+    d.sectionB.structuralFrame = g("structural frame");
+    d.sectionB.externalWalls = g("external walls");
+    d.sectionB.roofStructure = g("roof structure");
+    d.sectionB.roofCovering = g("roof covering");
+    d.sectionB.floorType = g("floor type");
+    d.sectionB.ceilingType = dash(g("ceiling type"));
+    d.sectionB.insulationType = g("insulation type");
+    d.sectionB.mezzanineFloors = g("mezzanine floors");
+    d.sectionB.buildingCondition = g("building condition");
+    d.sectionB.structuralConcerns = g("structural concerns");
+
+    // Section C
+    d.sectionC.fireDetectionSystem = g("fire detection system");
+    d.sectionC.detectionType = g("detection type");
+    d.sectionC.sprinklerSystem = g("sprinkler system");
+    d.sectionC.sprinklerType = g("sprinkler type");
+    d.sectionC.sprinklerCoverage = g("sprinkler coverage");
+    d.sectionC.fireExtinguishers = g("fire extinguishers");
+    d.sectionC.extinguisherTypes = g("extinguisher types");
+    d.sectionC.fireHoseReels = g("fire hose reels");
+    d.sectionC.externalHydrants = g("external hydrants");
+    d.sectionC.fireAlarmPanel = g("fire alarm panel");
+    d.sectionC.emergencyExits = g("emergency exits");
+    d.sectionC.fireBrigade = g("fire brigade");
+    d.sectionC.lastFireDrillDate = g("last fire drill date");
+    d.sectionC.hotWorkProcedures = g("hot work procedures");
+
+    // Section D
+    d.sectionD.hazardousStorage = g("hazardous storage");
+    d.sectionD.hazardousMaterials = dash(g("hazardous materials"));
+    d.sectionD.storageArrangement = dash(g("storage arrangement"));
+    d.sectionD.electricalInstallation = g("electrical installation");
+    d.sectionD.electricalMaintDate = g("electrical maint. date") || g("electrical maint date");
+    d.sectionD.lightningProtection = dash(g("lightning protection"));
+    d.sectionD.emergencyLighting = g("emergency lighting");
+    d.sectionD.smokingPolicy = g("smoking policy");
+    d.sectionD.flammableLiquidStorage = dash(g("flammable liquid storage"));
+    d.sectionD.lpgStorage = dash(g("lpg storage"));
+    d.sectionD.dustHazard = g("dust hazard");
+    d.sectionD.processHazards = dash(g("process hazards"));
+
+    // Section E
+    d.sectionE.generalHousekeeping = g("general housekeeping");
+    d.sectionE.wasteManagement = g("waste management");
+    d.sectionE.maintenanceProgram = g("maintenance program");
+    d.sectionE.roofMaintenance = g("roof maintenance");
+    d.sectionE.electricalMaintenance = g("electrical maintenance");
+    d.sectionE.fireSafetyMaintenance = g("fire safety maintenance");
+    d.sectionE.securityArrangements = g("security arrangements");
+    d.sectionE.perimeterFencing = g("perimeter fencing");
+    d.sectionE.accessControl = g("access control");
+    d.sectionE.floodExposure = g("flood exposure");
+    d.sectionE.naturalCatExposure = g("natural cat exposure");
+    d.sectionE.businessContinuityPlan = g("business continuity plan");
+
+    return d;
+  };
+
   // --- Helper: empty survey data shell ---
   const emptySurvey = (): SurveyDataV2 => ({
     sectionA: { insuredName: "", address: "", contactPerson: "", contactPhone: "", dateOfSurvey: "", surveyorName: "", occupancy: "", occupancyOther: "", occupancyDetails: "", buildingAge: "", plotArea: "", constructedArea: "", numberOfFloors: "", numberOfBasements: "", surroundingExposures: "", latitude: "", longitude: "", floodRiskLevel: "", floodRiskDetails: "" },
@@ -438,13 +531,14 @@ function SurveyPage() {
           data = await extractEmbeddedJson(zip);
 
           if (!data) {
-            // No embedded JSON — extract text + images from the Word document
+            // No embedded JSON — parse text from the Word document into form fields
             const textContent = await extractDocxText(zip);
             const docImages = await extractDocxImages(zip);
 
-            data = emptySurvey();
             if (textContent) {
-              data.sectionA.occupancyDetails = textContent.slice(0, 5000);
+              data = parseDocxTextToSurvey(textContent);
+            } else {
+              data = emptySurvey();
             }
             allPhotos.push(...docImages);
           }
