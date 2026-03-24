@@ -278,77 +278,186 @@ function SurveyPage() {
   // --- Import surveyor JSON (analyst only) ---
   const [importing, setImporting] = useState(false);
 
+  // --- Helper: extract embedded survey JSON from a .docx ZIP ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extractEmbeddedJson = async (zip: any): Promise<SurveyDataV2 | null> => {
+    // 1. Custom XML part
+    const xmlFile = zip.file("customXml/ntruSurveyData.xml");
+    if (xmlFile) {
+      const xml = await xmlFile.async("string");
+      const s = xml.indexOf("<ntruData>");
+      const e = xml.indexOf("</ntruData>");
+      if (s !== -1 && e !== -1) {
+        const decoded = xml
+          .substring(s + 10, e)
+          .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+        return JSON.parse(decoded) as SurveyDataV2;
+      }
+    }
+    // 2. Legacy JSON file
+    const jsonFile = zip.file("ntru-survey-data.json");
+    if (jsonFile) {
+      return JSON.parse(await jsonFile.async("string")) as SurveyDataV2;
+    }
+    // 3. ZIP comment
+    const MARKER = "<!--NTRU_SURVEY_DATA:";
+    const comment = (zip as unknown as { comment?: string }).comment || "";
+    const mi = comment.indexOf(MARKER);
+    if (mi !== -1) {
+      const b64End = comment.indexOf(":END-->", mi + MARKER.length);
+      if (b64End !== -1) {
+        const b64 = comment.substring(mi + MARKER.length, b64End);
+        return JSON.parse(decodeURIComponent(escape(atob(b64)))) as SurveyDataV2;
+      }
+    }
+    return null;
+  };
+
+  // --- Helper: extract text content from Word document XML ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extractDocxText = async (zip: any): Promise<string> => {
+    const docFile = zip.file("word/document.xml");
+    if (!docFile) return "";
+    const xml = await docFile.async("string");
+    // Strip XML tags, keep text nodes — gives us all visible text from the document
+    return xml
+      .replace(/<w:br[^>]*\/>/g, "\n")
+      .replace(/<w:tab[^>]*\/>/g, "\t")
+      .replace(/<\/w:p>/g, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  // --- Helper: extract images from Word document ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extractDocxImages = async (zip: any): Promise<TaggedPhoto[]> => {
+    const photos: TaggedPhoto[] = [];
+    const mediaFiles = zip.folder("word/media");
+    if (!mediaFiles) return photos;
+
+    const imageFiles: string[] = [];
+    mediaFiles.forEach((path: string, file: { dir: boolean }) => {
+      if (!file.dir && /\.(png|jpe?g|gif|bmp|webp)$/i.test(path)) {
+        imageFiles.push("word/media/" + path);
+      }
+    });
+
+    // Limit to avoid memory issues
+    const MAX_IMAGES = 20;
+    for (const imgPath of imageFiles.slice(0, MAX_IMAGES)) {
+      const imgFile = zip.file(imgPath);
+      if (!imgFile) continue;
+      const blob = await imgFile.async("blob");
+      const ext = imgPath.split(".").pop()?.toLowerCase() || "jpeg";
+      const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(new Blob([blob], { type: mimeType }));
+      });
+      photos.push({ dataUrl, section: "general", caption: `Imported: ${imgPath.split("/").pop()}` });
+    }
+    return photos;
+  };
+
+  // --- Helper: convert an image File to a TaggedPhoto ---
+  const imageFileToPhoto = (file: File): Promise<TaggedPhoto> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        resolve({ dataUrl: reader.result as string, section: "general", caption: `Imported: ${file.name}` });
+      reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+
+  // --- Helper: empty survey data shell ---
+  const emptySurvey = (): SurveyDataV2 => ({
+    sectionA: { insuredName: "", address: "", contactPerson: "", contactPhone: "", dateOfSurvey: "", surveyorName: "", occupancy: "", occupancyOther: "", occupancyDetails: "", buildingAge: "", plotArea: "", constructedArea: "", numberOfFloors: "", numberOfBasements: "", surroundingExposures: "", latitude: "", longitude: "", floodRiskLevel: "", floodRiskDetails: "" },
+    sectionB: { structuralFrame: "", externalWalls: "", roofStructure: "", roofCovering: "", floorType: "", ceilingType: "", insulationType: "", mezzanineFloors: "", buildingCondition: "", structuralConcerns: "" },
+    sectionC: { fireDetectionSystem: "", detectionType: "", sprinklerSystem: "", sprinklerType: "", sprinklerCoverage: "", fireExtinguishers: "", extinguisherTypes: "", fireHoseReels: "", externalHydrants: "", fireAlarmPanel: "", emergencyExits: "", fireBrigade: "", lastFireDrillDate: "", hotWorkProcedures: "" },
+    sectionD: { hazardousStorage: "", hazardousMaterials: "", storageArrangement: "", electricalInstallation: "", electricalMaintDate: "", lightningProtection: "", emergencyLighting: "", smokingPolicy: "", flammableLiquidStorage: "", lpgStorage: "", dustHazard: "", processHazards: "" },
+    sectionE: { generalHousekeeping: "", wasteManagement: "", maintenanceProgram: "", roofMaintenance: "", electricalMaintenance: "", fireSafetyMaintenance: "", securityArrangements: "", perimeterFencing: "", accessControl: "", floodExposure: "", naturalCatExposure: "", businessContinuityPlan: "" },
+    photos: [],
+  });
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     e.target.value = "";
 
     setImporting(true);
     setError("");
 
     try {
-      let data: SurveyDataV2;
+      let data: SurveyDataV2 | null = null;
 
-      if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        // Extract embedded survey data from Word file
-        // Read as ArrayBuffer for better memory handling with large files
-        const buffer = await file.arrayBuffer();
+      // Separate files by type
+      const docxFiles: File[] = [];
+      const jsonFiles: File[] = [];
+      const imageFiles: File[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        if (f.name.endsWith(".docx") || f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+          docxFiles.push(f);
+        } else if (f.name.endsWith(".json") || f.type === "application/json") {
+          jsonFiles.push(f);
+        } else if (f.type.startsWith("image/")) {
+          imageFiles.push(f);
+        }
+      }
+
+      // Process .docx file (use first one)
+      if (docxFiles.length > 0) {
+        const buffer = await docxFiles[0].arrayBuffer();
         const JSZip = (await import("jszip")).default;
         const zip = await JSZip.loadAsync(buffer);
 
-        // Try multiple storage locations — Word editing may remove some but not all
-        // 1. Custom XML part (primary, may survive Word edits)
-        // 2. Legacy plain JSON file
-        // 3. ZIP comment (most resilient — Word never touches this)
-        const xmlFile = zip.file("customXml/ntruSurveyData.xml");
-        const jsonFile = zip.file("ntru-survey-data.json");
+        // Try to extract embedded survey JSON first
+        data = await extractEmbeddedJson(zip);
 
-        if (xmlFile) {
-          const xml = await xmlFile.async("string");
-          const startTag = "<ntruData>";
-          const endTag = "</ntruData>";
-          const startIdx = xml.indexOf(startTag);
-          const endIdx = xml.indexOf(endTag);
-          if (startIdx === -1 || endIdx === -1) throw new Error("Survey data is corrupted in this Word file.");
-          const encoded = xml.substring(startIdx + startTag.length, endIdx);
-          const decoded = encoded
-            .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-            .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
-          data = JSON.parse(decoded) as SurveyDataV2;
-        } else if (jsonFile) {
-          const text = await jsonFile.async("string");
-          data = JSON.parse(text) as SurveyDataV2;
-        } else {
-          // Fallback: check the ZIP comment (survives all Word edits)
-          const MARKER = "<!--NTRU_SURVEY_DATA:";
-          const comment = (zip as unknown as { comment?: string }).comment || "";
-          const markerIdx = comment.indexOf(MARKER);
-          if (markerIdx !== -1) {
-            const b64Start = markerIdx + MARKER.length;
-            const b64End = comment.indexOf(":END-->", b64Start);
-            if (b64End === -1) throw new Error("Survey data in this file is corrupted.");
-            const b64 = comment.substring(b64Start, b64End);
-            const jsonStr = decodeURIComponent(escape(atob(b64)));
-            data = JSON.parse(jsonStr) as SurveyDataV2;
-          } else {
-            throw new Error("This Word file does not contain survey data. Please use a file exported from the NTRU survey app.");
-          }
+        if (!data) {
+          // No embedded JSON — this is an external Word file
+          // Extract text content and images from the document
+          const textContent = await extractDocxText(zip);
+          const docImages = await extractDocxImages(zip);
+
+          data = emptySurvey();
+          // Put the extracted text into occupancyDetails as context for the AI
+          data.sectionA.occupancyDetails = textContent.slice(0, 5000);
+          data.photos = docImages;
         }
-      } else {
-        // Try parsing as JSON
-        const text = await file.text();
+      }
+
+      // Process .json file
+      if (!data && jsonFiles.length > 0) {
+        const text = await jsonFiles[0].text();
         data = JSON.parse(text) as SurveyDataV2;
       }
 
-      // Validate shape
-      if (!data.sectionA || !data.sectionB || !data.sectionC || !data.sectionD || !data.sectionE) {
-        throw new Error("Invalid survey file — missing section data.");
-      }
-      if (!Array.isArray(data.photos)) {
-        data.photos = [];
+      // Process image files (add to existing data or create new survey)
+      if (imageFiles.length > 0) {
+        if (!data) data = emptySurvey();
+        const importedPhotos = await Promise.all(imageFiles.map(imageFileToPhoto));
+        data.photos = [...data.photos, ...importedPhotos];
       }
 
-      // Load into wizard by setting survey data and remounting
+      if (!data) {
+        throw new Error("No supported files found. Import a Word file (.docx), JSON file, or images (.jpg, .png).");
+      }
+
+      // Ensure all sections exist (for partial/external data)
+      if (!data.sectionA) data.sectionA = emptySurvey().sectionA;
+      if (!data.sectionB) data.sectionB = emptySurvey().sectionB;
+      if (!data.sectionC) data.sectionC = emptySurvey().sectionC;
+      if (!data.sectionD) data.sectionD = emptySurvey().sectionD;
+      if (!data.sectionE) data.sectionE = emptySurvey().sectionE;
+      if (!Array.isArray(data.photos)) data.photos = [];
+
+      // Load into wizard
       setSurveyData(data);
       setError("");
       setAppState("form");
@@ -356,9 +465,9 @@ function SurveyPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("out of memory") || msg.includes("allocation") || msg.includes("RangeError")) {
-        setError("This file is too large to import in the browser. Try reducing the number of photos in the survey and re-exporting.");
+        setError("This file is too large to import in the browser. Try reducing the number of photos.");
       } else {
-        setError(msg || "Failed to import file. Please use an NTRU survey Word or JSON file.");
+        setError(msg || "Failed to import file.");
       }
     } finally {
       setImporting(false);
@@ -504,12 +613,13 @@ function SurveyPage() {
                     ) : (
                       <Upload className="h-3.5 w-3.5" />
                     )}
-                    {importing ? "Importing..." : "Import Survey"}
+                    {importing ? "Importing..." : "Import File"}
                   </button>
                   <input
                     ref={importFileRef}
                     type="file"
-                    accept=".docx,.json"
+                    accept=".docx,.json,image/*"
+                    multiple
                     className="hidden"
                     onChange={handleImportFile}
                   />
