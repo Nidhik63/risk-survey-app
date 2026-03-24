@@ -267,7 +267,21 @@ function SurveyPage() {
   };
 
   const handleNewSurvey = () => {
+    // Clear ALL saved data: form, photos, analysis
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    try { localStorage.removeItem("ntru-survey-photos"); } catch { /* ignore */ }
+    // Clear IndexedDB photos too
+    try {
+      const req = indexedDB.open("ntru-survey");
+      req.onsuccess = () => {
+        try {
+          const db = req.result;
+          const tx = db.transaction("photos", "readwrite");
+          tx.objectStore("photos").clear();
+          db.close();
+        } catch { /* ignore */ }
+      };
+    } catch { /* ignore */ }
     setSurveyData(null);
     setAnalysis(null);
     setError("");
@@ -398,17 +412,22 @@ function SurveyPage() {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         const nameLower = (f.name || "").toLowerCase();
-        const isImage = f.type.startsWith("image/") || /\.(jpe?g|png|gif|bmp|webp|heic)$/i.test(nameLower);
 
+        // Try as image first (only if clearly an image)
+        const isImage = f.type.startsWith("image/") && !nameLower.endsWith(".docx");
         if (isImage) {
-          // Direct image file
           allPhotos.push(await imageFileToPhoto(f));
           continue;
         }
 
-        // For any non-image file, try to open as ZIP (.docx is a ZIP)
+        // Try to open as ZIP (.docx is a ZIP) — always attempt this for non-images
+        let zipError = "";
         try {
           const buffer = await f.arrayBuffer();
+          if (buffer.byteLength === 0) {
+            zipError = "File is empty (0 bytes)";
+            throw new Error(zipError);
+          }
           const JSZip = (await import("jszip")).default;
           const zip = await JSZip.loadAsync(buffer);
 
@@ -426,7 +445,8 @@ function SurveyPage() {
             }
             allPhotos.push(...docImages);
           }
-        } catch {
+        } catch (zipErr) {
+          zipError = zipError || (zipErr instanceof Error ? zipErr.message : String(zipErr));
           // Not a valid ZIP — try as JSON text
           try {
             const text = await f.text();
@@ -435,7 +455,13 @@ function SurveyPage() {
               data = parsed;
             }
           } catch {
-            // Not JSON either — skip this file
+            // Not JSON either — try as image regardless of type
+            try {
+              allPhotos.push(await imageFileToPhoto(f));
+            } catch {
+              // Last resort failed — record diagnostic info
+              console.error(`Import failed for "${f.name}" (type: ${f.type}, size: ${f.size}). ZIP error: ${zipError}`);
+            }
           }
         }
       }
@@ -447,7 +473,8 @@ function SurveyPage() {
       }
 
       if (!data) {
-        throw new Error("Could not read this file. Try importing a Word file (.docx), JSON file, or images (.jpg, .png).");
+        const fileInfo = Array.from(files).map(f => `${f.name} (${f.type || "no type"}, ${(f.size / 1024).toFixed(0)}KB)`).join(", ");
+        throw new Error(`Could not extract data from: ${fileInfo}. Check browser console for details.`);
       }
 
       // Ensure all sections exist (for partial/external data)
