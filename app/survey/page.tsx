@@ -267,8 +267,9 @@ function SurveyPage() {
   };
 
   const handleNewSurvey = () => {
-    // Clear ALL saved data: form, photos, analysis
+    // Clear ALL saved data: form, photos, step, analysis
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    try { localStorage.removeItem("risklens-v2-step"); } catch { /* ignore */ }
     try { localStorage.removeItem("ntru-survey-photos"); } catch { /* ignore */ }
     // Clear IndexedDB photos too
     try {

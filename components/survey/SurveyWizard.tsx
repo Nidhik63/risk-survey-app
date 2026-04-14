@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Send, Sparkles, Loader2, CheckCircle2, FilePlus2, RotateCcw } from "lucide-react";
 import type { SurveyDataV2, AutoFillResult } from "@/lib/survey-types";
 import { WIZARD_STEPS } from "@/lib/survey-types";
@@ -22,6 +22,7 @@ interface SurveyWizardProps {
 }
 
 const STORAGE_KEY = "risklens-v2-survey";
+const STEP_KEY = "risklens-v2-step";
 
 export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardProps) {
   const role = useRole();
@@ -29,6 +30,7 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
   const [data, setData] = useState<SurveyDataV2>(defaultSurveyData);
   const [errors, setErrors] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const suppressPopRef = useRef(false);
 
   // Resume gate — if saved data exists, show choice screen first
   // "checking" → reading localStorage; "choosing" → waiting for user; "ready" → form visible
@@ -133,19 +135,30 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
     } catch {
       // ignore
     }
+    // Restore saved step position
+    try {
+      const savedStep = localStorage.getItem(STEP_KEY);
+      if (savedStep) {
+        const step = parseInt(savedStep, 10);
+        if (!isNaN(step) && step >= 0 && step < WIZARD_STEPS.length) {
+          setCurrentStep(step);
+        }
+      }
+    } catch { /* ignore */ }
     setResumeState("ready");
   };
 
   // Start fresh — clear localStorage + IndexedDB photos and proceed with empty form
   const startFresh = () => {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STEP_KEY);
     clearPhotos();
     setData(defaultSurveyData);
     setCurrentStep(0);
     setResumeState("ready");
   };
 
-  // Auto-save form fields to localStorage
+  // Auto-save form fields + current step to localStorage
   useEffect(() => {
     if (!loaded || resumeState !== "ready") return;
     try {
@@ -161,6 +174,50 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
       // ignore quota errors
     }
   }, [data.sectionA, data.sectionB, data.sectionC, data.sectionD, data.sectionE, loaded, resumeState]);
+
+  // Persist currentStep so it survives page refresh / resume
+  useEffect(() => {
+    if (!loaded || resumeState !== "ready") return;
+    try {
+      localStorage.setItem(STEP_KEY, String(currentStep));
+    } catch { /* ignore */ }
+  }, [currentStep, loaded, resumeState]);
+
+  // Browser history integration — back button goes to previous wizard step
+  useEffect(() => {
+    if (resumeState !== "ready") return;
+
+    // Push an initial history entry so the first back press stays on /survey
+    if (!window.history.state?.wizardStep && window.history.state?.wizardStep !== 0) {
+      window.history.replaceState({ wizardStep: currentStep }, "");
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (suppressPopRef.current) {
+        suppressPopRef.current = false;
+        return;
+      }
+      const prevStep = e.state?.wizardStep;
+      if (typeof prevStep === "number" && prevStep >= 0) {
+        setErrors([]);
+        setCurrentStep(prevStep);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        // No wizard state — user is navigating away from the survey entirely.
+        // Push them back into the survey at step 0 to prevent accidental data loss.
+        if (currentStep > 0) {
+          window.history.pushState({ wizardStep: 0 }, "");
+          setErrors([]);
+          setCurrentStep(0);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        // If already at step 0, let the browser navigate away normally
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [resumeState, currentStep]);
 
   // Photo save is handled explicitly in handlePhotosChange below
   // (not via useEffect to avoid race conditions with initial load)
@@ -354,18 +411,23 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
       return;
     }
     setErrors([]);
-    setCurrentStep((prev) => Math.min(prev + 1, WIZARD_STEPS.length - 1));
+    const nextStep = Math.min(currentStep + 1, WIZARD_STEPS.length - 1);
+    window.history.pushState({ wizardStep: nextStep }, "");
+    setCurrentStep(nextStep);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleBack = () => {
     setErrors([]);
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (currentStep > 0) {
+      // Use browser history.back() so popstate handler stays in sync
+      window.history.back();
+    }
   };
 
   const handleGoToStep = (step: number) => {
     setErrors([]);
+    window.history.pushState({ wizardStep: step }, "");
     setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -377,6 +439,7 @@ export default function SurveyWizard({ onSubmit, importedData }: SurveyWizardPro
       return;
     }
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STEP_KEY);
     clearPhotos();
     onSubmit(data);
   };
