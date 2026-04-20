@@ -13,7 +13,7 @@ import RiskScoreGauge from "@/components/RiskScoreGauge";
 import {
   Target,
   AlertTriangle,
-
+  Clock,
   Shield,
 } from "lucide-react";
 
@@ -50,8 +50,13 @@ export default function RIReport({ analysis, surveyData, onBack, analystName, an
       : []),
   ];
 
-  // Sort recommendations by priority (no grouping by timeframe)
-  const sortedRecs = [...(analysis.recommendations ?? [])].sort((a, b) => a.priority - b.priority);
+  // Group recommendations by timeframe
+  const recGroups = [
+    { key: "Immediate", label: "Immediate Action", color: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)" },
+    { key: "30 days", label: "Within 30 Days", color: "#f97316", bg: "rgba(249,115,22,0.06)", border: "rgba(249,115,22,0.15)" },
+    { key: "90 days", label: "Within 90 Days", color: "#f59e0b", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
+    { key: "12 months", label: "Within 12 Months", color: "#3b82f6", bg: "rgba(59,130,246,0.06)", border: "rgba(59,130,246,0.15)" },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -154,28 +159,46 @@ export default function RIReport({ analysis, surveyData, onBack, analystName, an
             </div>
           </div>
 
-          <div className="space-y-2">
-            {sortedRecs.map((rec) => (
-              <div
-                key={rec.priority}
-                className="flex items-start gap-4 rounded-2xl p-5 break-inside-avoid"
-                style={{ backgroundColor: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white bg-amber-500">
-                  {rec.priority}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-[var(--foreground)]">{rec.title}</h4>
-                  <p className="mt-1 text-sm text-gray-600 leading-relaxed">{rec.description}</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      <AlertTriangle className="h-3 w-3" /> Section {rec.section}
-                    </span>
-                  </div>
+          {recGroups.map((group) => {
+            const recs = analysis.recommendations.filter((r) => r.timeframe === group.key);
+            if (recs.length === 0) return null;
+            return (
+              <div key={group.key} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color }} />
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: group.color }}>
+                    {group.label}
+                  </h3>
                 </div>
+                {recs.map((rec) => (
+                  <div
+                    key={rec.priority}
+                    className="flex items-start gap-4 rounded-2xl p-5 break-inside-avoid"
+                    style={{ backgroundColor: group.bg, border: `1px solid ${group.border}` }}
+                  >
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white"
+                      style={{ backgroundColor: group.color }}
+                    >
+                      {rec.priority}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-[var(--foreground)]">{rec.title}</h4>
+                      <p className="mt-1 text-sm text-gray-600 leading-relaxed">{rec.description}</p>
+                      <div className="mt-2 flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          <Clock className="h-3 w-3" /> {rec.timeframe}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          <AlertTriangle className="h-3 w-3" /> Section {rec.section}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* ═══ 8. Photo Evidence — new page ═══ */}
