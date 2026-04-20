@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { RIReportAnalysis, SurveyDataV2 } from "@/lib/survey-types";
 import { exportReportToDocx } from "@/lib/docx-export";
 import ReportToolbar from "./ReportToolbar";
@@ -49,6 +50,8 @@ export default function RIReport({ analysis, surveyData, onBack, analystName, an
       ? [{ id: "section-photos", label: "Photo Evidence" }]
       : []),
   ];
+
+  const [brokerNotes, setBrokerNotes] = useState("");
 
   // Group recommendations by timeframe
   const recGroups = [
@@ -201,7 +204,32 @@ export default function RIReport({ analysis, surveyData, onBack, analystName, an
           })}
         </div>
 
-        {/* ═══ 8. Photo Evidence — new page ═══ */}
+        {/* ═══ 8. Client / Broker Notes ═══ */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden break-inside-avoid">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-[var(--foreground)] tracking-tight">
+                Client / Broker Commitment &amp; Requests
+              </h3>
+              <p className="text-[11px] text-[var(--muted)]">Record any commitments, undertakings or special requests here</p>
+            </div>
+          </div>
+          <div className="p-4">
+            <textarea
+              value={brokerNotes}
+              onChange={(e) => setBrokerNotes(e.target.value)}
+              placeholder="Type commitments, undertakings, or special requests here…"
+              rows={6}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 resize-y leading-relaxed print:border-gray-300 print:bg-white"
+              style={{ minHeight: "120px" }}
+            />
+          </div>
+        </div>
+
+        {/* ═══ 9. Photo Evidence — new page ═══ */}
         <div className="page-break-before">
           <PhotoAppendix photos={surveyData.photos} sections={analysis.sections} />
         </div>
