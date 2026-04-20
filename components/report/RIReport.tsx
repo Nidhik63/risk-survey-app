@@ -212,7 +212,7 @@ export default function RIReport({ analysis, surveyData, onBack, analystName, an
             </div>
             <div>
               <h3 className="text-sm font-black text-[var(--foreground)] tracking-tight">
-                Client / Broker Commitment &amp; Requests
+                Remarks
               </h3>
               <p className="text-[11px] text-[var(--muted)]">Record any commitments, undertakings or special requests here</p>
             </div>
